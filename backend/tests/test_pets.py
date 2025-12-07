@@ -93,7 +93,7 @@ def test_update_pet(client, auth_headers, test_pet):
     """Test updating a pet."""
     update_data = {"name": "Buddy Updated", "status": "available"}
 
-    response = client.patch(
+    response = client.put(
         f"/pets/{test_pet.id}", json=update_data, headers=auth_headers
     )
 
@@ -105,10 +105,10 @@ def test_update_pet(client, auth_headers, test_pet):
 
 def test_assign_foster(client, auth_headers, test_pet, test_user):
     """Test assigning a foster to a pet."""
-    assignment_data = {"foster_user_id": test_user.id}
-
     response = client.post(
-        f"/pets/{test_pet.id}/assign-foster", json=assignment_data, headers=auth_headers
+        f"/pets/{test_pet.id}/assign-foster",
+        params={"foster_user_id": test_user.id},
+        headers=auth_headers
     )
 
     assert response.status_code == 200
@@ -119,13 +119,13 @@ def test_assign_foster(client, auth_headers, test_pet, test_user):
 
 def test_assign_foster_invalid_user(client, auth_headers, test_pet):
     """Test assigning an invalid foster user."""
-    assignment_data = {"foster_user_id": 99999}  # Non-existent user
-
     response = client.post(
-        f"/pets/{test_pet.id}/assign-foster", json=assignment_data, headers=auth_headers
+        f"/pets/{test_pet.id}/assign-foster",
+        params={"foster_user_id": 99999},  # Non-existent user
+        headers=auth_headers
     )
 
-    assert response.status_code == 400
+    assert response.status_code == 404
 
 
 def test_assign_foster_inactive_user(client, auth_headers, test_pet, test_user, db):
@@ -134,10 +134,10 @@ def test_assign_foster_inactive_user(client, auth_headers, test_pet, test_user, 
     test_user.is_active = False
     db.commit()
 
-    assignment_data = {"foster_user_id": test_user.id}
-
     response = client.post(
-        f"/pets/{test_pet.id}/assign-foster", json=assignment_data, headers=auth_headers
+        f"/pets/{test_pet.id}/assign-foster",
+        params={"foster_user_id": test_user.id},
+        headers=auth_headers
     )
 
     assert response.status_code == 400

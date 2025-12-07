@@ -1134,7 +1134,7 @@ function PetDetailPanel({ pet, colors, styles, onClose, onPetUpdated }) {
     setSuccess("");
 
     try {
-      const response = await api.post(`/pets/${pet.id}/unassign-foster`);
+      const response = await api.delete(`/pets/${pet.id}/assign-foster`);
       const updated = response.data;
       setLocalPet(updated);
       setFosterIdInput("");
