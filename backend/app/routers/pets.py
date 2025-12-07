@@ -144,6 +144,12 @@ def assign_foster(
             detail="Foster user not found",
         )
 
+    if not foster.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot assign inactive user as foster",
+        )
+
     pet.foster_user_id = foster.id
     # Move status to in_foster when appropriate
     if pet.status in [schemas.PetStatus.intake, schemas.PetStatus.needs_foster]:
