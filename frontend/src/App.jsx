@@ -671,7 +671,7 @@ function AnimalIntakeForm({ colors, styles }) {
               </select>
             </div>
 
-            {/* Photo URL */}
+                        {/* Photo URL and upload */}
             <div>
               <label
                 style={{
@@ -698,8 +698,17 @@ function AnimalIntakeForm({ colors, styles }) {
                   color: colors.text,
                 }}
               />
+              <ImageUploadField
+                colors={colors}
+                styles={styles}
+                value={formData.photo_url}
+                onChange={(url) =>
+                  setFormData((prev) => ({ ...prev, photo_url: url }))
+                }
+              />
             </div>
           </div>
+
 
           {/* Breed typeahead for up to 3 breeds */}
           <div style={{ marginBottom: "1.5rem" }}>
@@ -905,19 +914,657 @@ function AnimalIntakeForm({ colors, styles }) {
   );
 }
 
+function ImageUploadField({ colors, styles, value, onChange, petId }) {
+  const [file, setFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
+  const handleFileChange = (event) => {
+    const selected = event.target.files && event.target.files[0];
+    setFile(selected || null);
+    setError("");
+    setSuccess("");
+  };
+
+  const handleUpload = async () => {
+    if (!file) {
+      setError("Select a file before uploading");
+      return;
+    }
+
+    setUploading(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      if (petId) {
+        formData.append("pet_id", String(petId));
+      }
+      formData.append("visibility", "internal");
+
+      const response = await api.post("/files/upload", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      const doc = response.data;
+      const path = doc.file_path || "";
+      if (!path) {
+        setError("Upload succeeded but no file path was returned");
+      } else {
+        // If uploads are served from a different base url, adjust this mapping.
+        onChange(path);
+        setSuccess("Image uploaded");
+      }
+    } catch (err) {
+      const message =
+        err?.response?.data?.detail ||
+        err?.message ||
+        "Image upload failed";
+      setError(message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div style={{ marginTop: "0.5rem" }}>
+      <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+        <input
+          type="file"
+          accept="image/*"
+          onChange={handleFileChange}
+          style={{
+            flexGrow: 1,
+            fontSize: "0.8rem",
+          }}
+        />
+        <button
+          type="button"
+          onClick={handleUpload}
+          disabled={uploading}
+          style={{
+            ...styles.button,
+            padding: "0.5rem 0.75rem",
+            fontSize: "0.8rem",
+            opacity: uploading ? 0.7 : 1,
+          }}
+        >
+          {uploading ? "Uploading..." : "Upload"}
+        </button>
+      </div>
+      {value && (
+        <p
+          style={{
+            marginTop: "0.35rem",
+            fontSize: "0.75rem",
+            color: colors.textMuted,
+            wordBreak: "break-all",
+          }}
+        >
+          Current: {value}
+        </p>
+      )}
+      {error && (
+        <p
+          style={{
+            marginTop: "0.25rem",
+            fontSize: "0.75rem",
+            color: colors.danger || "#ef4444",
+          }}
+        >
+          {error}
+        </p>
+      )}
+      {success && !error && (
+        <p
+          style={{
+            marginTop: "0.25rem",
+            fontSize: "0.75rem",
+            color: colors.success || "#10b981",
+          }}
+        >
+          {success}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function PetDetailPanel({ pet, colors, styles, onClose, onPetUpdated }) {
+  const [localPet, setLocalPet] = useState(pet);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [fosterIdInput, setFosterIdInput] = useState(
+    pet.foster_user_id ? String(pet.foster_user_id) : ""
+  );
+  const [assigning, setAssigning] = useState(false);
+
+  useEffect(() => {
+    setLocalPet(pet);
+    setFosterIdInput(pet.foster_user_id ? String(pet.foster_user_id) : "");
+    setError("");
+    setSuccess("");
+  }, [pet]);
+
+  const handleFieldChange = (event) => {
+    const { name, value } = event.target;
+    setLocalPet((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const payload = {
+        name: localPet.name,
+        species: localPet.species,
+        breed: localPet.breed,
+        sex: localPet.sex,
+        status: localPet.status,
+        description_public: localPet.description_public,
+        description_internal: localPet.description_internal,
+        photo_url: localPet.photo_url,
+      };
+
+      const response = await api.put(`/pets/${pet.id}`, payload);
+      const updated = response.data;
+      setLocalPet(updated);
+      setSuccess("Pet updated");
+      if (onPetUpdated) {
+        onPetUpdated(updated);
+      }
+    } catch (err) {
+      const message =
+        err?.response?.data?.detail || err?.message || "Unable to save pet";
+      setError(message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAssignFoster = async () => {
+    const fosterId = parseInt(fosterIdInput, 10);
+    if (!fosterId) {
+      setError("Enter a numeric foster user id");
+      return;
+    }
+
+    setAssigning(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const response = await api.post(
+        `/pets/${pet.id}/assign-foster`,
+        null,
+        { params: { foster_user_id: fosterId } }
+      );
+      const updated = response.data;
+      setLocalPet(updated);
+      setFosterIdInput(
+        updated.foster_user_id ? String(updated.foster_user_id) : ""
+      );
+      setSuccess("Foster assignment updated");
+      if (onPetUpdated) {
+        onPetUpdated(updated);
+      }
+    } catch (err) {
+      const message =
+        err?.response?.data?.detail ||
+        err?.message ||
+        "Unable to update foster assignment";
+      setError(message);
+    } finally {
+      setAssigning(false);
+    }
+  };
+
+  const handleClearFoster = async () => {
+    setAssigning(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const response = await api.post(`/pets/${pet.id}/unassign-foster`);
+      const updated = response.data;
+      setLocalPet(updated);
+      setFosterIdInput("");
+      setSuccess("Foster cleared");
+      if (onPetUpdated) {
+        onPetUpdated(updated);
+      }
+    } catch (err) {
+      const message =
+        err?.response?.data?.detail ||
+        err?.message ||
+        "Unable to clear foster assignment";
+      setError(message);
+    } finally {
+      setAssigning(false);
+    }
+  };
+
+  if (!pet) {
+    return null;
+  }
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 40,
+        background: "rgba(15, 23, 42, 0.75)",
+        display: "flex",
+        justifyContent: "flex-end",
+      }}
+    >
+      <div
+        style={{
+          width: "420px",
+          maxWidth: "100%",
+          height: "100%",
+          background: colors.backgroundSecondary,
+          boxShadow: styles.card.boxShadow,
+          padding: "1.5rem",
+          overflowY: "auto",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "1rem",
+          }}
+        >
+          <h2
+            style={{
+              fontSize: "1.25rem",
+              fontWeight: 600,
+            }}
+          >
+            Edit Pet: {localPet.name}
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              border: "none",
+              background: "transparent",
+              fontSize: "1.25rem",
+              cursor: "pointer",
+            }}
+          >
+            ×
+          </button>
+        </div>
+
+        {error && (
+          <div
+            style={{
+              marginBottom: "1rem",
+              padding: "0.75rem 1rem",
+              borderRadius: "0.75rem",
+              background: "rgba(248, 113, 113, 0.08)",
+              border: `1px solid ${colors.danger || "#ef4444"}`,
+              color: colors.danger || "#ef4444",
+              fontSize: "0.85rem",
+            }}
+          >
+            {error}
+          </div>
+        )}
+
+        {success && !error && (
+          <div
+            style={{
+              marginBottom: "1rem",
+              padding: "0.75rem 1rem",
+              borderRadius: "0.75rem",
+              background: "rgba(34, 197, 94, 0.08)",
+              border: `1px solid ${colors.success || "#10b981"}`,
+              color: colors.success || "#10b981",
+              fontSize: "0.85rem",
+            }}
+          >
+            {success}
+          </div>
+        )}
+
+        {/* core fields */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr",
+            gap: "0.75rem",
+            marginBottom: "1.25rem",
+          }}
+        >
+          <div>
+            <label
+              style={{
+                display: "block",
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                marginBottom: "0.25rem",
+              }}
+            >
+              Name
+            </label>
+            <input
+              name="name"
+              value={localPet.name || ""}
+              onChange={handleFieldChange}
+              style={styles.input}
+            />
+          </div>
+
+          <div>
+            <label
+              style={{
+                display: "block",
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                marginBottom: "0.25rem",
+              }}
+            >
+              Species
+            </label>
+            <select
+              name="species"
+              value={localPet.species || ""}
+              onChange={handleFieldChange}
+              style={styles.input}
+            >
+              <option value="">Select</option>
+              <option value="Dog">Dog</option>
+              <option value="Cat">Cat</option>
+              <option value="Bird">Bird</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <div>
+            <label
+              style={{
+                display: "block",
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                marginBottom: "0.25rem",
+              }}
+            >
+              Sex
+            </label>
+            <select
+              name="sex"
+              value={localPet.sex || ""}
+              onChange={handleFieldChange}
+              style={styles.input}
+            >
+              <option value="">Unknown</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="M">M</option>
+              <option value="F">F</option>
+              <option value="U">U</option>
+            </select>
+          </div>
+
+          <div>
+            <label
+              style={{
+                display: "block",
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                marginBottom: "0.25rem",
+              }}
+            >
+              Status
+            </label>
+            <select
+              name="status"
+              value={localPet.status || "intake"}
+              onChange={handleFieldChange}
+              style={styles.input}
+            >
+              <option value="intake">Intake</option>
+              <option value="needs_foster">Needs Foster</option>
+              <option value="in_foster">In Foster</option>
+              <option value="available">Available</option>
+              <option value="pending">Pending</option>
+              <option value="adopted">Adopted</option>
+            </select>
+          </div>
+
+          <div>
+            <label
+              style={{
+                display: "block",
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                marginBottom: "0.25rem",
+              }}
+            >
+              Breed
+            </label>
+            <input
+              name="breed"
+              value={localPet.breed || ""}
+              onChange={handleFieldChange}
+              style={styles.input}
+            />
+          </div>
+
+          <div>
+            <label
+              style={{
+                display: "block",
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                marginBottom: "0.25rem",
+              }}
+            >
+              Photo URL
+            </label>
+            <input
+              name="photo_url"
+              value={localPet.photo_url || ""}
+              onChange={handleFieldChange}
+              style={styles.input}
+            />
+            <ImageUploadField
+              colors={colors}
+              styles={styles}
+              value={localPet.photo_url || ""}
+              onChange={(url) =>
+                setLocalPet((prev) => ({ ...prev, photo_url: url }))
+              }
+              petId={pet.id}
+            />
+          </div>
+
+          <div>
+            <label
+              style={{
+                display: "block",
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                marginBottom: "0.25rem",
+              }}
+            >
+              Public Description
+            </label>
+            <textarea
+              name="description_public"
+              value={localPet.description_public || ""}
+              onChange={handleFieldChange}
+              rows={3}
+              style={{
+                ...styles.input,
+                resize: "vertical",
+              }}
+            />
+          </div>
+
+          <div>
+            <label
+              style={{
+                display: "block",
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                marginBottom: "0.25rem",
+              }}
+            >
+              Internal Notes
+            </label>
+            <textarea
+              name="description_internal"
+              value={localPet.description_internal || ""}
+              onChange={handleFieldChange}
+              rows={3}
+              style={{
+                ...styles.input,
+                resize: "vertical",
+              }}
+            />
+          </div>
+        </div>
+
+        {/* foster assignment section */}
+        <div
+          style={{
+            marginBottom: "1.5rem",
+            padding: "0.75rem 1rem",
+            borderRadius: "0.75rem",
+            background: colors.background,
+            border: `1px solid ${colors.cardBorder}`,
+          }}
+        >
+          <h3
+            style={{
+              fontSize: "0.95rem",
+              fontWeight: 600,
+              marginBottom: "0.5rem",
+            }}
+          >
+            Foster assignment
+          </h3>
+          <div
+            style={{
+              display: "flex",
+              gap: "0.5rem",
+              alignItems: "center",
+              marginBottom: "0.5rem",
+            }}
+          >
+            <input
+              type="number"
+              placeholder="Foster user id"
+              value={fosterIdInput}
+              onChange={(event) => setFosterIdInput(event.target.value)}
+              style={{
+                ...styles.input,
+                fontSize: "0.8rem",
+              }}
+            />
+            <button
+              type="button"
+              onClick={handleAssignFoster}
+              disabled={assigning}
+              style={{
+                ...styles.button,
+                fontSize: "0.8rem",
+                padding: "0.5rem 0.75rem",
+              }}
+            >
+              {assigning ? "Saving..." : "Assign"}
+            </button>
+            <button
+              type="button"
+              onClick={handleClearFoster}
+              disabled={assigning}
+              style={{
+                ...styles.buttonSecondary,
+                fontSize: "0.8rem",
+                padding: "0.5rem 0.75rem",
+              }}
+            >
+              Clear
+            </button>
+          </div>
+          <p
+            style={{
+              fontSize: "0.75rem",
+              color: colors.textMuted,
+            }}
+          >
+            Current foster user id:{" "}
+            {localPet.foster_user_id ? localPet.foster_user_id : "None"}
+          </p>
+        </div>
+
+        {/* footer buttons */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: "0.75rem",
+          }}
+        >
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              ...styles.buttonSecondary,
+              flex: 1,
+            }}
+          >
+            Close
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            style={{
+              ...styles.button,
+              flex: 1,
+              opacity: saving ? 0.8 : 1,
+            }}
+          >
+            {saving ? "Saving..." : "Save changes"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function Dashboard({ colors, styles }) {
   const [pets, setPets] = useState([]);
   const [apps, setApps] = useState([]);
   const [tasks, setTasks] = useState([]);
-  const [donationsSummary, setDonationsSummary] = useState({ total_donations: 0 });
+  const [donationsSummary, setDonationsSummary] = useState({
+    total_donations: 0,
+  });
   const [petsByStatus, setPetsByStatus] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [selectedPet, setSelectedPet] = useState(null);
 
   useEffect(() => {
+    let isMounted = true;
+
     async function loadData() {
       try {
         const [p, a, t, ds, ps] = await Promise.all([
@@ -927,50 +1574,77 @@ function Dashboard({ colors, styles }) {
           api.get("/stats/donations_summary"),
           api.get("/stats/pets_by_status"),
         ]);
-        setPets(p.data);
-        setApps(a.data);
-        setTasks(t.data);
-        setDonationsSummary(ds.data);
-        setPetsByStatus(ps.data);
+
+        if (!isMounted) return;
+
+        setPets(p.data || []);
+        setApps(a.data || []);
+        setTasks(t.data || []);
+        setDonationsSummary(ds.data || {});
+        setPetsByStatus(ps.data || []);
       } catch (err) {
         console.error("Failed to load dashboard data", err);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     }
+
     loadData();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const filteredPets = useMemo(() => {
-    return pets.filter(pet => {
-      const matchesSearch = pet.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           (pet.species || "").toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesStatus = filterStatus === "all" || pet.status === filterStatus;
+    const term = searchTerm.trim().toLowerCase();
+
+    return pets.filter((pet) => {
+      const matchesSearch =
+        !term ||
+        (pet.name || "").toLowerCase().includes(term) ||
+        (pet.species || "").toLowerCase().includes(term) ||
+        (pet.breed || "").toLowerCase().includes(term);
+
+      const matchesStatus =
+        filterStatus === "all" || pet.status === filterStatus;
+
       return matchesSearch && matchesStatus;
     });
   }, [pets, searchTerm, filterStatus]);
 
   const stats = useMemo(() => {
     const totalDonations = Number(donationsSummary.total_donations || 0);
-    const availablePets = petsByStatus.find(s => s.status === "available")?.count || 0;
-    const pendingApps = apps.filter(a => a.status === "submitted" || a.status === "under_review").length;
-    const urgentTasks = tasks.filter(t => t.priority === "urgent" && t.status !== "completed").length;
-    
+    const availablePets =
+      petsByStatus.find((s) => s.status === "available")?.count || 0;
+    const pendingApps = apps.filter(
+      (a) => a.status === "submitted" || a.status === "under_review"
+    ).length;
+    const urgentTasks = tasks.filter(
+      (t) => t.priority === "urgent" && t.status !== "completed"
+    ).length;
+
     return { totalDonations, availablePets, pendingApps, urgentTasks };
   }, [donationsSummary, petsByStatus, apps, tasks]);
 
   if (loading) {
     return (
-      <div style={{
-        ...styles.content,
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        minHeight: "60vh",
-      }}>
+      <div
+        style={{
+          ...styles.content,
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          minHeight: "60vh",
+        }}
+      >
         <div style={{ textAlign: "center" }}>
           <LoadingSpinner />
-          <p style={{ marginTop: "1rem", color: colors.textMuted }}>Loading dashboard...</p>
+          <p style={{ marginTop: "1rem", color: colors.textMuted }}>
+            Loading dashboard...
+          </p>
         </div>
       </div>
     );
@@ -978,78 +1652,120 @@ function Dashboard({ colors, styles }) {
 
   return (
     <div style={styles.content}>
-      <div style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: "2rem",
-      }}>
+      {/* Header */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "2rem",
+        }}
+      >
         <div>
-          <h1 style={{
-            fontSize: "2rem",
-            fontWeight: 700,
-            marginBottom: "0.5rem",
-          }}>Dashboard</h1>
-            <p style={{ color: colors.textMuted, fontSize: "0.95rem" }}>
-              Welcome back! Here&rsquo;s what&rsquo;s happening today.
-            </p>
+          <h1
+            style={{
+              fontSize: "2rem",
+              fontWeight: 700,
+              marginBottom: "0.5rem",
+            }}
+          >
+            Dashboard
+          </h1>
+          <p
+            style={{
+              color: colors.textMuted,
+              fontSize: "0.95rem",
+            }}
+          >
+            Welcome back! Here is what is happening today.
+          </p>
         </div>
       </div>
 
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-        gap: "1.25rem",
-        marginBottom: "2rem",
-      }}>
-        <div style={{
-          ...styles.statCard,
-          background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",
-        }}>
+      {/* Stats row */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+          gap: "1.25rem",
+          marginBottom: "2rem",
+        }}
+      >
+        <div
+          style={{
+            ...styles.statCard,
+            background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",
+          }}
+        >
           <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>🏠</div>
-          <div style={{ fontSize: "2rem", fontWeight: 700 }}>{stats.availablePets}</div>
-          <div style={{ fontSize: "0.875rem", opacity: 0.9 }}>Available for Adoption</div>
+          <div style={{ fontSize: "2rem", fontWeight: 700 }}>
+            {stats.availablePets}
+          </div>
+          <div style={{ fontSize: "0.875rem", opacity: 0.9 }}>
+            Available for Adoption
+          </div>
         </div>
 
-        <div style={{
-          ...styles.statCard,
-          background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
-        }}>
+        <div
+          style={{
+            ...styles.statCard,
+            background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+          }}
+        >
           <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>💰</div>
-          <div style={{ fontSize: "2rem", fontWeight: 700 }}>${stats.totalDonations.toFixed(0)}</div>
-          <div style={{ fontSize: "0.875rem", opacity: 0.9 }}>Total Donations</div>
+          <div style={{ fontSize: "2rem", fontWeight: 700 }}>
+            ${stats.totalDonations.toFixed(0)}
+          </div>
+          <div style={{ fontSize: "0.875rem", opacity: 0.9 }}>
+            Total Donations
+          </div>
         </div>
 
-        <div style={{
-          ...styles.statCard,
-          background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
-        }}>
+        <div
+          style={{
+            ...styles.statCard,
+            background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+          }}
+        >
           <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>📋</div>
-          <div style={{ fontSize: "2rem", fontWeight: 700 }}>{stats.pendingApps}</div>
-          <div style={{ fontSize: "0.875rem", opacity: 0.9 }}>Pending Applications</div>
+          <div style={{ fontSize: "2rem", fontWeight: 700 }}>
+            {stats.pendingApps}
+          </div>
+          <div style={{ fontSize: "0.875rem", opacity: 0.9 }}>
+            Pending Applications
+          </div>
         </div>
 
-        <div style={{
-          ...styles.statCard,
-          background: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
-        }}>
+        <div
+          style={{
+            ...styles.statCard,
+            background: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
+          }}
+        >
           <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>⚠️</div>
-          <div style={{ fontSize: "2rem", fontWeight: 700 }}>{stats.urgentTasks}</div>
+          <div style={{ fontSize: "2rem", fontWeight: 700 }}>
+            {stats.urgentTasks}
+          </div>
           <div style={{ fontSize: "0.875rem", opacity: 0.9 }}>Urgent Tasks</div>
         </div>
       </div>
 
+      {/* Pets card */}
       <div style={{ ...styles.card, marginBottom: "2rem" }}>
-        <div style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "1.5rem",
-        }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "1.5rem",
+          }}
+        >
           <h2 style={{ fontSize: "1.25rem", fontWeight: 600 }}>
             🐾 Pets ({filteredPets.length})
           </h2>
-          <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+          <div
+            style={{ display: "flex", gap: "1rem", alignItems: "center" }}
+          >
             <SearchBar
               value={searchTerm}
               onChange={setSearchTerm}
@@ -1062,26 +1778,32 @@ function Dashboard({ colors, styles }) {
               style={{
                 ...styles.input,
                 width: "auto",
-                minWidth: "150px",
+                minWidth: "140px",
               }}
             >
               <option value="all">All Status</option>
-              <option value="available">Available</option>
+              <option value="intake">Intake</option>
+              <option value="needs_foster">Needs Foster</option>
               <option value="in_foster">In Foster</option>
+              <option value="available">Available</option>
               <option value="pending">Pending</option>
               <option value="adopted">Adopted</option>
             </select>
           </div>
         </div>
 
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-          gap: "1rem",
-        }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns:
+              "repeat(auto-fill, minmax(280px, 1fr))",
+            gap: "1rem",
+          }}
+        >
           {filteredPets.slice(0, 6).map((pet) => (
             <div
               key={pet.id}
+              onClick={() => setSelectedPet(pet)}
               style={{
                 ...styles.card,
                 padding: "1rem",
@@ -1109,16 +1831,22 @@ function Dashboard({ colors, styles }) {
                   }}
                 />
               )}
-              <h3 style={{
-                fontSize: "1.1rem",
-                fontWeight: 600,
-                marginBottom: "0.25rem",
-              }}>{pet.name}</h3>
-              <p style={{
-                fontSize: "0.875rem",
-                color: colors.textMuted,
-                marginBottom: "0.5rem",
-              }}>
+              <h3
+                style={{
+                  fontSize: "1.1rem",
+                  fontWeight: 600,
+                  marginBottom: "0.25rem",
+                }}
+              >
+                {pet.name}
+              </h3>
+              <p
+                style={{
+                  fontSize: "0.875rem",
+                  color: colors.textMuted,
+                  marginBottom: "0.5rem",
+                }}
+              >
                 {pet.species} • {pet.breed || "Mixed"}
               </p>
               <span style={styles.badge(pet.status)}>
@@ -1129,23 +1857,27 @@ function Dashboard({ colors, styles }) {
         </div>
       </div>
 
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))",
-        gap: "1.25rem",
-      }}>
+      {/* Applications and tasks */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1.5fr)",
+          gap: "1.5rem",
+        }}
+      >
         <div style={styles.card}>
-          <h3 style={{
-            fontSize: "1.1rem",
-            fontWeight: 600,
-            marginBottom: "1rem",
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem",
-          }}>
+          <h3
+            style={{
+              fontSize: "1.1rem",
+              fontWeight: 600,
+              marginBottom: "1rem",
+            }}
+          >
             📝 Recent Applications
           </h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
+          >
             {apps.slice(0, 5).map((app) => (
               <div
                 key={app.id}
@@ -1159,10 +1891,17 @@ function Dashboard({ colors, styles }) {
                 }}
               >
                 <div>
-                  <div style={{ fontWeight: 500, fontSize: "0.9rem" }}>
+                  <div
+                    style={{ fontWeight: 500, fontSize: "0.9rem" }}
+                  >
                     {app.type} Application
                   </div>
-                  <div style={{ fontSize: "0.8rem", color: colors.textMuted }}>
+                  <div
+                    style={{
+                      fontSize: "0.8rem",
+                      color: colors.textMuted,
+                    }}
+                  >
                     {app.applicant_name || "Applicant"}
                   </div>
                 </div>
@@ -1175,17 +1914,18 @@ function Dashboard({ colors, styles }) {
         </div>
 
         <div style={styles.card}>
-          <h3 style={{
-            fontSize: "1.1rem",
-            fontWeight: 600,
-            marginBottom: "1rem",
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem",
-          }}>
-            ✅ Tasks & To-Dos
+          <h3
+            style={{
+              fontSize: "1.1rem",
+              fontWeight: 600,
+              marginBottom: "1rem",
+            }}
+          >
+            ✅ Tasks
           </h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
+          >
             {tasks.slice(0, 5).map((task) => (
               <div
                 key={task.id}
@@ -1199,10 +1939,17 @@ function Dashboard({ colors, styles }) {
                 }}
               >
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 500, fontSize: "0.9rem" }}>
+                  <div
+                    style={{ fontWeight: 500, fontSize: "0.9rem" }}
+                  >
                     {task.title}
                   </div>
-                  <div style={{ fontSize: "0.8rem", color: colors.textMuted }}>
+                  <div
+                    style={{
+                      fontSize: "0.8rem",
+                      color: colors.textMuted,
+                    }}
+                  >
                     Due: {task.due_date || "No due date"}
                   </div>
                 </div>
@@ -1219,9 +1966,28 @@ function Dashboard({ colors, styles }) {
           </div>
         </div>
       </div>
+
+      {selectedPet && (
+        <PetDetailPanel
+          pet={selectedPet}
+          colors={colors}
+          styles={styles}
+          onClose={() => setSelectedPet(null)}
+          onPetUpdated={(updated) => {
+            setPets((prev) =>
+              prev.map((p) => (p.id === updated.id ? updated : p))
+            );
+            setSelectedPet(updated);
+          }}
+        />
+      )}
     </div>
   );
 }
+
+
+
+
 
 function SettingsPage({ colors, styles }) {
   const [org, setOrg] = useState({ name: "", logo_url: "", primary_contact_email: "" });
