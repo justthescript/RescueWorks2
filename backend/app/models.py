@@ -56,6 +56,28 @@ class TaskPriority(str, enum.Enum):
     urgent = "urgent"
 
 
+class FosterExperienceLevel(str, enum.Enum):
+    none = "none"
+    beginner = "beginner"
+    intermediate = "intermediate"
+    advanced = "advanced"
+
+
+class HomeType(str, enum.Enum):
+    house = "house"
+    apartment = "apartment"
+    condo = "condo"
+    townhouse = "townhouse"
+    other = "other"
+
+
+class PlacementOutcome(str, enum.Enum):
+    active = "active"
+    adopted = "adopted"
+    returned = "returned"
+    transferred = "transferred"
+
+
 class PaymentStatus(str, enum.Enum):
     pending = "pending"
     completed = "completed"
@@ -101,6 +123,7 @@ class User(Base):
     tasks_assigned = relationship(
         "Task", back_populates="assignee", foreign_keys="Task.assigned_to_user_id"
     )
+    foster_profile = relationship("FosterProfile", back_populates="user", uselist=False)
 
 
 class Role(Base):
@@ -162,6 +185,89 @@ class Application(Base):
 
     organization = relationship("Organization", back_populates="applications")
     applicant = relationship("User")
+    pet = relationship("Pet")
+
+
+class FosterProfile(Base):
+    __tablename__ = "foster_profiles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
+
+    # Experience and preferences
+    experience_level = Column(Enum(FosterExperienceLevel), default=FosterExperienceLevel.none)
+    preferred_species = Column(String, nullable=True)  # Comma-separated list
+    preferred_ages = Column(String, nullable=True)  # e.g., "puppy,adult"
+    max_capacity = Column(Integer, default=1)
+    current_capacity = Column(Integer, default=0)
+
+    # Home information
+    home_type = Column(Enum(HomeType), nullable=True)
+    has_yard = Column(Boolean, default=False)
+    has_other_pets = Column(Boolean, default=False)
+    other_pets_description = Column(Text, nullable=True)
+    has_children = Column(Boolean, default=False)
+    children_ages = Column(String, nullable=True)
+
+    # Qualifications
+    can_handle_medical = Column(Boolean, default=False)
+    can_handle_behavioral = Column(Boolean, default=False)
+    training_completed = Column(Text, nullable=True)  # Comma-separated list of completed trainings
+    certifications = Column(Text, nullable=True)
+
+    # Availability
+    available_from = Column(DateTime, nullable=True)
+    available_until = Column(DateTime, nullable=True)
+    is_available = Column(Boolean, default=True)
+
+    # Performance metrics
+    total_fosters = Column(Integer, default=0)
+    successful_adoptions = Column(Integer, default=0)
+    avg_foster_duration_days = Column(Float, nullable=True)
+    rating = Column(Float, nullable=True)  # 0-5 stars
+
+    # Admin fields
+    background_check_status = Column(String, nullable=True)  # pending, approved, denied
+    background_check_date = Column(DateTime, nullable=True)
+    insurance_verified = Column(Boolean, default=False)
+    references_checked = Column(Boolean, default=False)
+    notes_internal = Column(Text, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("User", back_populates="foster_profile")
+    placements = relationship("FosterPlacement", back_populates="foster_profile")
+
+
+class FosterPlacement(Base):
+    __tablename__ = "foster_placements"
+
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
+    pet_id = Column(Integer, ForeignKey("pets.id"), nullable=False)
+    foster_profile_id = Column(Integer, ForeignKey("foster_profiles.id"), nullable=False)
+
+    # Placement details
+    start_date = Column(DateTime, default=datetime.utcnow)
+    expected_end_date = Column(DateTime, nullable=True)
+    actual_end_date = Column(DateTime, nullable=True)
+    outcome = Column(Enum(PlacementOutcome), default=PlacementOutcome.active)
+
+    # Placement metadata
+    placement_notes = Column(Text, nullable=True)  # Special instructions for foster
+    return_reason = Column(Text, nullable=True)
+    success_notes = Column(Text, nullable=True)
+
+    # Agreement and documentation
+    agreement_signed = Column(Boolean, default=False)
+    agreement_signed_date = Column(DateTime, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    foster_profile = relationship("FosterProfile", back_populates="placements")
     pet = relationship("Pet")
 
 

@@ -3315,6 +3315,498 @@ function VetPortal({ colors, styles }) {
 }
 
 
+// ============================================================================
+// FOSTER COORDINATOR COMPONENTS
+// ============================================================================
+
+function FosterCoordinatorDashboard({ colors, styles }) {
+  const [stats, setStats] = useState(null);
+  const [matches, setMatches] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [statsRes, matchesRes] = await Promise.all([
+          api.get("/foster-coordinator/dashboard/stats"),
+          api.get("/foster-coordinator/matches/suggest"),
+        ]);
+        setStats(statsRes.data);
+        setMatches(matchesRes.data || []);
+      } catch (err) {
+        console.error("Failed to load foster coordinator data:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div style={{ ...styles.content, textAlign: "center", padding: "3rem" }}>
+        <LoadingSpinner />
+        <p style={{ marginTop: "1rem", color: colors.textMuted }}>Loading dashboard...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div style={styles.content}>
+      <h1 style={{ fontSize: "2rem", marginBottom: "2rem", fontWeight: 700 }}>
+        🏡 Foster Coordinator Dashboard
+      </h1>
+
+      {/* Stats Grid */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+        gap: "1.5rem",
+        marginBottom: "2rem",
+      }}>
+        <div style={styles.statCard}>
+          <div style={{ fontSize: "0.875rem", opacity: 0.9, marginBottom: "0.5rem" }}>
+            Active Fosters
+          </div>
+          <div style={{ fontSize: "2.5rem", fontWeight: 700 }}>
+            {stats?.total_active_fosters || 0}
+          </div>
+        </div>
+
+        <div style={styles.statCard}>
+          <div style={{ fontSize: "0.875rem", opacity: 0.9, marginBottom: "0.5rem" }}>
+            Available Fosters
+          </div>
+          <div style={{ fontSize: "2.5rem", fontWeight: 700 }}>
+            {stats?.total_available_fosters || 0}
+          </div>
+        </div>
+
+        <div style={styles.statCard}>
+          <div style={{ fontSize: "0.875rem", opacity: 0.9, marginBottom: "0.5rem" }}>
+            Pets Needing Foster
+          </div>
+          <div style={{ fontSize: "2.5rem", fontWeight: 700 }}>
+            {stats?.pets_needing_foster || 0}
+          </div>
+        </div>
+
+        <div style={styles.statCard}>
+          <div style={{ fontSize: "0.875rem", opacity: 0.9, marginBottom: "0.5rem" }}>
+            Pets In Foster
+          </div>
+          <div style={{ fontSize: "2.5rem", fontWeight: 700 }}>
+            {stats?.pets_in_foster || 0}
+          </div>
+        </div>
+
+        <div style={styles.statCard}>
+          <div style={{ fontSize: "0.875rem", opacity: 0.9, marginBottom: "0.5rem" }}>
+            Available Capacity
+          </div>
+          <div style={{ fontSize: "2.5rem", fontWeight: 700 }}>
+            {stats?.available_foster_capacity || 0}
+          </div>
+        </div>
+
+        <div style={styles.statCard}>
+          <div style={{ fontSize: "0.875rem", opacity: 0.9, marginBottom: "0.5rem" }}>
+            Avg. Placement Days
+          </div>
+          <div style={{ fontSize: "2.5rem", fontWeight: 700 }}>
+            {stats?.avg_placement_duration_days?.toFixed(0) || "N/A"}
+          </div>
+        </div>
+      </div>
+
+      {/* Suggested Matches */}
+      <div style={{ ...styles.card, marginBottom: "2rem" }}>
+        <h2 style={{ fontSize: "1.5rem", marginBottom: "1.5rem", fontWeight: 600 }}>
+          🎯 Suggested Matches
+        </h2>
+
+        {matches.length === 0 ? (
+          <p style={{ color: colors.textMuted, textAlign: "center", padding: "2rem" }}>
+            No matches available at this time
+          </p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+            {matches.slice(0, 10).map((match, idx) => (
+              <div
+                key={idx}
+                style={{
+                  padding: "1rem",
+                  border: `1px solid ${colors.cardBorder}`,
+                  borderRadius: "0.5rem",
+                  background: colors.background,
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, marginBottom: "0.5rem" }}>
+                      {match.pet_name} ({match.pet_species}) → {match.foster_name}
+                    </div>
+                    <div style={{ fontSize: "0.875rem", color: colors.textMuted, marginBottom: "0.5rem" }}>
+                      {match.foster_email}
+                    </div>
+                    <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                      {match.match_reasons.map((reason, i) => (
+                        <span
+                          key={i}
+                          style={{
+                            fontSize: "0.75rem",
+                            padding: "0.25rem 0.5rem",
+                            background: colors.accent,
+                            color: "white",
+                            borderRadius: "0.25rem",
+                          }}
+                        >
+                          {reason}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{
+                    marginLeft: "1rem",
+                    textAlign: "right",
+                  }}>
+                    <div style={{
+                      fontSize: "1.5rem",
+                      fontWeight: 700,
+                      color: colors.accent,
+                    }}>
+                      {match.match_score.toFixed(0)}
+                    </div>
+                    <div style={{ fontSize: "0.75rem", color: colors.textMuted }}>
+                      score
+                    </div>
+                    <div style={{ fontSize: "0.75rem", color: colors.textMuted, marginTop: "0.25rem" }}>
+                      Load: {match.current_foster_load}/{match.max_capacity}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Recent Placements */}
+      <div style={styles.card}>
+        <h2 style={{ fontSize: "1.5rem", marginBottom: "1.5rem", fontWeight: 600 }}>
+          📋 Recent Placements
+        </h2>
+
+        {!stats?.recent_placements || stats.recent_placements.length === 0 ? (
+          <p style={{ color: colors.textMuted, textAlign: "center", padding: "2rem" }}>
+            No recent placements
+          </p>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ borderBottom: `2px solid ${colors.cardBorder}` }}>
+                  <th style={{ padding: "0.75rem", textAlign: "left" }}>Pet ID</th>
+                  <th style={{ padding: "0.75rem", textAlign: "left" }}>Start Date</th>
+                  <th style={{ padding: "0.75rem", textAlign: "left" }}>Outcome</th>
+                  <th style={{ padding: "0.75rem", textAlign: "left" }}>Agreement</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stats.recent_placements.map((placement) => (
+                  <tr key={placement.id} style={{ borderBottom: `1px solid ${colors.cardBorder}` }}>
+                    <td style={{ padding: "0.75rem" }}>{placement.pet_id}</td>
+                    <td style={{ padding: "0.75rem" }}>
+                      {new Date(placement.start_date).toLocaleDateString()}
+                    </td>
+                    <td style={{ padding: "0.75rem" }}>
+                      <span style={styles.badge(placement.outcome)}>
+                        {placement.outcome}
+                      </span>
+                    </td>
+                    <td style={{ padding: "0.75rem" }}>
+                      {placement.agreement_signed ? "✅" : "⏳"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FosterProfileManagement({ colors, styles }) {
+  const [profiles, setProfiles] = useState([]);
+  const [myProfile, setMyProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [editingProfile, setEditingProfile] = useState(null);
+  const [formData, setFormData] = useState({});
+
+  useEffect(() => {
+    loadProfiles();
+  }, []);
+
+  async function loadProfiles() {
+    try {
+      const [profilesRes, myProfileRes] = await Promise.all([
+        api.get("/foster-coordinator/profiles"),
+        api.get("/foster-coordinator/profiles/me").catch(() => ({ data: null })),
+      ]);
+      setProfiles(profilesRes.data || []);
+      setMyProfile(myProfileRes.data);
+    } catch (err) {
+      console.error("Failed to load profiles:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function createOrUpdateProfile() {
+    try {
+      if (myProfile) {
+        // Update existing profile
+        await api.patch("/foster-coordinator/profiles/me", formData);
+      } else {
+        // Create new profile
+        await api.post("/foster-coordinator/profiles", {
+          ...formData,
+          org_id: 1, // TODO: Get from user context
+        });
+      }
+      await loadProfiles();
+      setEditingProfile(null);
+      setFormData({});
+    } catch (err) {
+      console.error("Failed to save profile:", err);
+      alert("Failed to save profile");
+    }
+  }
+
+  if (loading) {
+    return (
+      <div style={{ ...styles.content, textAlign: "center", padding: "3rem" }}>
+        <LoadingSpinner />
+        <p style={{ marginTop: "1rem", color: colors.textMuted }}>Loading profiles...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div style={styles.content}>
+      <h1 style={{ fontSize: "2rem", marginBottom: "2rem", fontWeight: 700 }}>
+        👥 Foster Profile Management
+      </h1>
+
+      {/* My Profile Section */}
+      <div style={{ ...styles.card, marginBottom: "2rem" }}>
+        <h2 style={{ fontSize: "1.5rem", marginBottom: "1.5rem", fontWeight: 600 }}>
+          My Foster Profile
+        </h2>
+
+        {!myProfile && !editingProfile ? (
+          <div style={{ textAlign: "center", padding: "2rem" }}>
+            <p style={{ color: colors.textMuted, marginBottom: "1rem" }}>
+              You don't have a foster profile yet
+            </p>
+            <button
+              onClick={() => setEditingProfile(true)}
+              style={styles.button("primary")}
+            >
+              Create Profile
+            </button>
+          </div>
+        ) : editingProfile ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+            <div>
+              <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 500 }}>
+                Experience Level
+              </label>
+              <select
+                value={formData.experience_level || "none"}
+                onChange={(e) => setFormData({ ...formData, experience_level: e.target.value })}
+                style={styles.input}
+              >
+                <option value="none">None</option>
+                <option value="beginner">Beginner</option>
+                <option value="intermediate">Intermediate</option>
+                <option value="advanced">Advanced</option>
+              </select>
+            </div>
+
+            <div>
+              <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 500 }}>
+                Preferred Species (comma-separated)
+              </label>
+              <input
+                type="text"
+                value={formData.preferred_species || ""}
+                onChange={(e) => setFormData({ ...formData, preferred_species: e.target.value })}
+                style={styles.input}
+                placeholder="e.g., dog, cat"
+              />
+            </div>
+
+            <div>
+              <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 500 }}>
+                Max Capacity
+              </label>
+              <input
+                type="number"
+                value={formData.max_capacity || 1}
+                onChange={(e) => setFormData({ ...formData, max_capacity: parseInt(e.target.value) })}
+                style={styles.input}
+                min="1"
+              />
+            </div>
+
+            <div>
+              <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 500 }}>
+                Home Type
+              </label>
+              <select
+                value={formData.home_type || ""}
+                onChange={(e) => setFormData({ ...formData, home_type: e.target.value })}
+                style={styles.input}
+              >
+                <option value="">Select...</option>
+                <option value="house">House</option>
+                <option value="apartment">Apartment</option>
+                <option value="condo">Condo</option>
+                <option value="townhouse">Townhouse</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            <div style={{ display: "flex", gap: "0.5rem" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <input
+                  type="checkbox"
+                  checked={formData.has_yard || false}
+                  onChange={(e) => setFormData({ ...formData, has_yard: e.target.checked })}
+                />
+                Has Yard
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <input
+                  type="checkbox"
+                  checked={formData.can_handle_medical || false}
+                  onChange={(e) => setFormData({ ...formData, can_handle_medical: e.target.checked })}
+                />
+                Can Handle Medical
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <input
+                  type="checkbox"
+                  checked={formData.can_handle_behavioral || false}
+                  onChange={(e) => setFormData({ ...formData, can_handle_behavioral: e.target.checked })}
+                />
+                Can Handle Behavioral
+              </label>
+            </div>
+
+            <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}>
+              <button onClick={createOrUpdateProfile} style={styles.button("primary")}>
+                Save Profile
+              </button>
+              <button
+                onClick={() => {
+                  setEditingProfile(null);
+                  setFormData({});
+                }}
+                style={styles.button("secondary")}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "1rem", marginBottom: "1rem" }}>
+              <div>
+                <strong>Experience:</strong> {myProfile.experience_level}
+              </div>
+              <div>
+                <strong>Capacity:</strong> {myProfile.current_capacity}/{myProfile.max_capacity}
+              </div>
+              <div>
+                <strong>Home Type:</strong> {myProfile.home_type || "N/A"}
+              </div>
+              <div>
+                <strong>Total Fosters:</strong> {myProfile.total_fosters}
+              </div>
+              <div>
+                <strong>Successful Adoptions:</strong> {myProfile.successful_adoptions}
+              </div>
+              <div>
+                <strong>Rating:</strong> {myProfile.rating ? `${myProfile.rating}⭐` : "N/A"}
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setEditingProfile(true);
+                setFormData(myProfile);
+              }}
+              style={styles.button("primary")}
+            >
+              Edit Profile
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* All Profiles */}
+      <div style={styles.card}>
+        <h2 style={{ fontSize: "1.5rem", marginBottom: "1.5rem", fontWeight: 600 }}>
+          All Foster Profiles ({profiles.length})
+        </h2>
+
+        <div style={{ display: "grid", gap: "1rem" }}>
+          {profiles.map((profile) => (
+            <div
+              key={profile.id}
+              style={{
+                padding: "1rem",
+                border: `1px solid ${colors.cardBorder}`,
+                borderRadius: "0.5rem",
+                background: colors.background,
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
+                <div>
+                  <div style={{ fontWeight: 600, marginBottom: "0.5rem" }}>
+                    Foster Profile #{profile.id}
+                  </div>
+                  <div style={{ fontSize: "0.875rem", color: colors.textMuted }}>
+                    Experience: {profile.experience_level} | Capacity: {profile.current_capacity}/{profile.max_capacity}
+                  </div>
+                  {profile.preferred_species && (
+                    <div style={{ fontSize: "0.875rem", color: colors.textMuted }}>
+                      Prefers: {profile.preferred_species}
+                    </div>
+                  )}
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  {profile.rating && (
+                    <div style={{ fontWeight: 600, color: colors.accent }}>
+                      {profile.rating}⭐
+                    </div>
+                  )}
+                  <div style={{ fontSize: "0.75rem", color: colors.textMuted }}>
+                    {profile.total_fosters} total fosters
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [token, setToken] = useState(null);
   const [view, setView] = useState("dashboard");
@@ -3418,6 +3910,38 @@ export default function App() {
             🏥 Vet Portal
           </button>
           <button
+            style={styles.navButton(view === "foster")}
+            onClick={() => setView("foster")}
+            onMouseEnter={(e) => {
+              if (view !== "foster") {
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (view !== "foster") {
+                e.currentTarget.style.background = "transparent";
+              }
+            }}
+          >
+            🏡 Foster Coordinator
+          </button>
+          <button
+            style={styles.navButton(view === "foster-profiles")}
+            onClick={() => setView("foster-profiles")}
+            onMouseEnter={(e) => {
+              if (view !== "foster-profiles") {
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (view !== "foster-profiles") {
+                e.currentTarget.style.background = "transparent";
+              }
+            }}
+          >
+            👥 Foster Profiles
+          </button>
+          <button
             style={styles.navButton(view === "settings")}
             onClick={() => setView("settings")}
             onMouseEnter={(e) => {
@@ -3456,6 +3980,8 @@ export default function App() {
       {view === "settings" && <SettingsPage colors={colors} styles={styles} />}
       {view === "my" && <MyPortal colors={colors} styles={styles} />}
       {view === "vet" && <VetPortal colors={colors} styles={styles} />}
+      {view === "foster" && <FosterCoordinatorDashboard colors={colors} styles={styles} />}
+      {view === "foster-profiles" && <FosterProfileManagement colors={colors} styles={styles} />}
     </div>
   );
 }

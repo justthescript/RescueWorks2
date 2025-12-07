@@ -44,6 +44,28 @@ class TaskPriority(str, Enum):
     urgent = "urgent"
 
 
+class FosterExperienceLevel(str, Enum):
+    none = "none"
+    beginner = "beginner"
+    intermediate = "intermediate"
+    advanced = "advanced"
+
+
+class HomeType(str, Enum):
+    house = "house"
+    apartment = "apartment"
+    condo = "condo"
+    townhouse = "townhouse"
+    other = "other"
+
+
+class PlacementOutcome(str, Enum):
+    active = "active"
+    adopted = "adopted"
+    returned = "returned"
+    transferred = "transferred"
+
+
 class PaymentStatus(str, Enum):
     pending = "pending"
     completed = "completed"
@@ -496,6 +518,148 @@ class Document(DocumentBase):
 
     class Config:
         orm_mode = True
+
+
+class FosterProfileBase(BaseModel):
+    # Experience and preferences
+    experience_level: FosterExperienceLevel = FosterExperienceLevel.none
+    preferred_species: Optional[str] = None
+    preferred_ages: Optional[str] = None
+    max_capacity: int = 1
+    current_capacity: int = 0
+
+    # Home information
+    home_type: Optional[HomeType] = None
+    has_yard: bool = False
+    has_other_pets: bool = False
+    other_pets_description: Optional[str] = None
+    has_children: bool = False
+    children_ages: Optional[str] = None
+
+    # Qualifications
+    can_handle_medical: bool = False
+    can_handle_behavioral: bool = False
+    training_completed: Optional[str] = None
+    certifications: Optional[str] = None
+
+    # Availability
+    available_from: Optional[datetime] = None
+    available_until: Optional[datetime] = None
+    is_available: bool = True
+
+
+class FosterProfileCreate(FosterProfileBase):
+    org_id: int
+
+
+class FosterProfileUpdate(BaseModel):
+    experience_level: Optional[FosterExperienceLevel] = None
+    preferred_species: Optional[str] = None
+    preferred_ages: Optional[str] = None
+    max_capacity: Optional[int] = None
+    home_type: Optional[HomeType] = None
+    has_yard: Optional[bool] = None
+    has_other_pets: Optional[bool] = None
+    other_pets_description: Optional[str] = None
+    has_children: Optional[bool] = None
+    children_ages: Optional[str] = None
+    can_handle_medical: Optional[bool] = None
+    can_handle_behavioral: Optional[bool] = None
+    training_completed: Optional[str] = None
+    certifications: Optional[str] = None
+    available_from: Optional[datetime] = None
+    available_until: Optional[datetime] = None
+    is_available: Optional[bool] = None
+
+
+class FosterProfile(FosterProfileBase):
+    id: int
+    user_id: int
+    org_id: int
+    total_fosters: int
+    successful_adoptions: int
+    avg_foster_duration_days: Optional[float]
+    rating: Optional[float]
+    background_check_status: Optional[str]
+    background_check_date: Optional[datetime]
+    insurance_verified: bool
+    references_checked: bool
+    notes_internal: Optional[str]
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        orm_mode = True
+
+
+class FosterProfileAdmin(FosterProfile):
+    """Admin view with all fields including sensitive data"""
+    pass
+
+
+class FosterPlacementBase(BaseModel):
+    pet_id: int
+    foster_profile_id: int
+    expected_end_date: Optional[datetime] = None
+    placement_notes: Optional[str] = None
+
+
+class FosterPlacementCreate(FosterPlacementBase):
+    org_id: int
+
+
+class FosterPlacementUpdate(BaseModel):
+    expected_end_date: Optional[datetime] = None
+    actual_end_date: Optional[datetime] = None
+    outcome: Optional[PlacementOutcome] = None
+    placement_notes: Optional[str] = None
+    return_reason: Optional[str] = None
+    success_notes: Optional[str] = None
+    agreement_signed: Optional[bool] = None
+    agreement_signed_date: Optional[datetime] = None
+
+
+class FosterPlacement(FosterPlacementBase):
+    id: int
+    org_id: int
+    start_date: datetime
+    actual_end_date: Optional[datetime]
+    outcome: PlacementOutcome
+    return_reason: Optional[str]
+    success_notes: Optional[str]
+    agreement_signed: bool
+    agreement_signed_date: Optional[datetime]
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        orm_mode = True
+
+
+class FosterMatch(BaseModel):
+    """Represents a suggested foster match from the matching algorithm"""
+    pet_id: int
+    pet_name: str
+    pet_species: str
+    pet_status: str
+    foster_user_id: int
+    foster_name: str
+    foster_email: str
+    match_score: float
+    match_reasons: List[str]
+    current_foster_load: int
+    max_capacity: int
+
+
+class FosterCoordinatorStats(BaseModel):
+    """Statistics for the foster coordinator dashboard"""
+    total_active_fosters: int
+    total_available_fosters: int
+    pets_needing_foster: int
+    pets_in_foster: int
+    avg_placement_duration_days: Optional[float]
+    recent_placements: List[FosterPlacement]
+    available_foster_capacity: int
 
 
 class PortalSummary(BaseModel):

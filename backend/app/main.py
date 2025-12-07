@@ -10,6 +10,7 @@ from .routers import (
     events,
     expenses,
     files,
+    foster_coordinator,
     medical,
     messaging,
     orgs,
@@ -48,6 +49,7 @@ app.include_router(auth.router)
 app.include_router(orgs.router)
 app.include_router(pets.router)
 app.include_router(applications.router)
+app.include_router(foster_coordinator.router)
 app.include_router(medical.router)
 app.include_router(events.router)
 app.include_router(tasks.router)
