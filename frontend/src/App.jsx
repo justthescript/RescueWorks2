@@ -1567,8 +1567,9 @@ function Dashboard({ colors, styles }) {
 
     async function loadData() {
       try {
+        // Use the same endpoint as the vet portal so you actually see pets
         const [p, a, t, ds, ps] = await Promise.all([
-          api.get("/pets"),
+          api.get("/vet/pets"),
           api.get("/applications"),
           api.get("/tasks"),
           api.get("/stats/donations_summary"),
@@ -1677,7 +1678,7 @@ function Dashboard({ colors, styles }) {
               fontSize: "0.95rem",
             }}
           >
-            Welcome back! Here is what is happening today.
+            Welcome back! Here’s what’s happening today.
           </p>
         </div>
       </div>
@@ -1746,11 +1747,13 @@ function Dashboard({ colors, styles }) {
           <div style={{ fontSize: "2rem", fontWeight: 700 }}>
             {stats.urgentTasks}
           </div>
-          <div style={{ fontSize: "0.875rem", opacity: 0.9 }}>Urgent Tasks</div>
+          <div style={{ fontSize: "0.875rem", opacity: 0.9 }}>
+            Urgent Tasks
+          </div>
         </div>
       </div>
 
-      {/* Pets card */}
+      {/* Pets preview card */}
       <div style={{ ...styles.card, marginBottom: "2rem" }}>
         <div
           style={{
@@ -1795,8 +1798,7 @@ function Dashboard({ colors, styles }) {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns:
-              "repeat(auto-fill, minmax(280px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
             gap: "1rem",
           }}
         >
@@ -1985,6 +1987,215 @@ function Dashboard({ colors, styles }) {
   );
 }
 
+function PetsPage({ colors, styles }) {
+  const [pets, setPets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [selectedPet, setSelectedPet] = useState(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadPets() {
+      try {
+        const res = await api.get("/vet/pets");
+        if (!isMounted) return;
+        setPets(res.data || []);
+      } catch (err) {
+        console.error("Failed to load pets", err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+    loadPets();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const filteredPets = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    return pets.filter((pet) => {
+      const matchesSearch =
+        !term ||
+        (pet.name || "").toLowerCase().includes(term) ||
+        (pet.species || "").toLowerCase().includes(term) ||
+        (pet.breed || "").toLowerCase().includes(term);
+
+      const matchesStatus =
+        filterStatus === "all" || pet.status === filterStatus;
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [pets, searchTerm, filterStatus]);
+
+  if (loading) {
+    return (
+      <div
+        style={{
+          ...styles.content,
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          minHeight: "60vh",
+        }}
+      >
+        <div style={{ textAlign: "center" }}>
+          <LoadingSpinner />
+          <p style={{ marginTop: "1rem", color: colors.textMuted }}>
+            Loading pets...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={styles.content}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "1.5rem",
+        }}
+      >
+        <div>
+          <h1
+            style={{
+              fontSize: "2rem",
+              fontWeight: 700,
+              marginBottom: "0.5rem",
+            }}
+          >
+            All Pets
+          </h1>
+          <p
+            style={{
+              color: colors.textMuted,
+              fontSize: "0.95rem",
+            }}
+          >
+            Search and edit pets in bulk. Click any card to edit details or
+            assign a foster.
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+          <SearchBar
+            value={searchTerm}
+            onChange={setSearchTerm}
+            placeholder="Search pets..."
+            colors={colors}
+          />
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            style={{
+              ...styles.input,
+              width: "auto",
+              minWidth: "160px",
+            }}
+          >
+            <option value="all">All Status</option>
+            <option value="intake">Intake</option>
+            <option value="needs_foster">Needs Foster</option>
+            <option value="in_foster">In Foster</option>
+            <option value="available">Available</option>
+            <option value="pending">Pending</option>
+            <option value="adopted">Adopted</option>
+          </select>
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+          gap: "1rem",
+        }}
+      >
+        {filteredPets.map((pet) => (
+          <div
+            key={pet.id}
+            onClick={() => setSelectedPet(pet)}
+            style={{
+              ...styles.card,
+              padding: "1rem",
+              cursor: "pointer",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "translateY(-4px)";
+              e.currentTarget.style.boxShadow = colors.shadowLg;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = colors.shadow;
+            }}
+          >
+            {pet.photo_url && (
+              <img
+                src={pet.photo_url}
+                alt={pet.name}
+                style={{
+                  width: "100%",
+                  height: "180px",
+                  objectFit: "cover",
+                  borderRadius: "0.75rem",
+                  marginBottom: "0.75rem",
+                }}
+              />
+            )}
+            <h3
+              style={{
+                fontSize: "1.1rem",
+                fontWeight: 600,
+                marginBottom: "0.25rem",
+              }}
+            >
+              {pet.name}
+            </h3>
+            <p
+              style={{
+                fontSize: "0.875rem",
+                color: colors.textMuted,
+                marginBottom: "0.35rem",
+              }}
+            >
+              {pet.species} • {pet.breed || "Mixed"}
+            </p>
+            <p
+              style={{
+                fontSize: "0.8rem",
+                color: colors.textMuted,
+                marginBottom: "0.5rem",
+              }}
+            >
+              Status:{" "}
+              <span style={styles.badge(pet.status)}>
+                {pet.status.replace("_", " ").toUpperCase()}
+              </span>
+            </p>
+          </div>
+        ))}
+      </div>
+
+      {selectedPet && (
+        <PetDetailPanel
+          pet={selectedPet}
+          colors={colors}
+          styles={styles}
+          onClose={() => setSelectedPet(null)}
+          onPetUpdated={(updated) => {
+            setPets((prev) =>
+              prev.map((p) => (p.id === updated.id ? updated : p))
+            );
+            setSelectedPet(updated);
+          }}
+        />
+      )}
+    </div>
+  );
+}
 
 
 
@@ -3125,36 +3336,54 @@ export default function App() {
         </div>
         <nav style={styles.nav}>
           <button
-            style={styles.navButton(view === "dashboard")}
-            onClick={() => setView("dashboard")}
-            onMouseEnter={(e) => {
-              if (view !== "dashboard") {
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (view !== "dashboard") {
-                e.currentTarget.style.background = "transparent";
-              }
-            }}
-          >
-            🏠 Dashboard
-          </button>
-          <button
-            style={styles.navButton(view === "intake")}
-            onClick={() => setView("intake")}
-            onMouseEnter={(e) => {
-              if (view !== "intake") {
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (view !== "intake") {
-                e.currentTarget.style.background = "transparent";
-              }
-            }}
-          >
-            📝 Intake
+  style={styles.navButton(view === "dashboard")}
+  onClick={() => setView("dashboard")}
+  onMouseEnter={(e) => {
+    if (view !== "dashboard") {
+      e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+    }
+  }}
+  onMouseLeave={(e) => {
+    if (view !== "dashboard") {
+      e.currentTarget.style.background = "transparent";
+    }
+  }}
+>
+  🏠 Dashboard
+</button>
+
+<button
+  style={styles.navButton(view === "pets")}
+  onClick={() => setView("pets")}
+  onMouseEnter={(e) => {
+    if (view !== "pets") {
+      e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+    }
+  }}
+  onMouseLeave={(e) => {
+    if (view !== "pets") {
+      e.currentTarget.style.background = "transparent";
+    }
+  }}
+>
+  🐾 Pets
+</button>
+
+<button
+  style={styles.navButton(view === "intake")}
+  onClick={() => setView("intake")}
+  onMouseEnter={(e) => {
+    if (view !== "intake") {
+      e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+    }
+  }}
+  onMouseLeave={(e) => {
+    if (view !== "intake") {
+      e.currentTarget.style.background = "transparent";
+    }
+  }}
+>
+  📝 Intake
           </button>
           <button
             style={styles.navButton(view === "my")}
@@ -3222,6 +3451,7 @@ export default function App() {
         </nav>
       </header>
       {view === "dashboard" && <Dashboard colors={colors} styles={styles} />}
+      {view === "pets" && <PetsPage colors={colors} styles={styles} />}
       {view === "intake" && <AnimalIntakeForm colors={colors} styles={styles} />}
       {view === "settings" && <SettingsPage colors={colors} styles={styles} />}
       {view === "my" && <MyPortal colors={colors} styles={styles} />}
