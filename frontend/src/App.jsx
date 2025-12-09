@@ -357,7 +357,6 @@ function Login({ onLogin }) {
   );
 }
 
-import { getBreedsForSpecies } from "./breeds";
 
 function AnimalIntakeForm({ colors, styles }) {
   const [formData, setFormData] = useState({
@@ -375,7 +374,7 @@ function AnimalIntakeForm({ colors, styles }) {
     description_public: "",
     description_internal: "",
     photo_url: "",
-  });
+});
 
   const [breedInputs, setBreedInputs] = useState(["", "", ""]);
   const [openBreedIndex, setOpenBreedIndex] = useState(null);
@@ -482,7 +481,7 @@ function AnimalIntakeForm({ colors, styles }) {
     } finally {
       setLoading(false);
     }
-}};
+};
 
   return (
     <div style={styles.content}>
@@ -1075,6 +1074,7 @@ function AnimalIntakeForm({ colors, styles }) {
       </div>
     </div>
   );
+}
 
 
 function ImageUploadField({ colors, styles, value, onChange, petId }) {
