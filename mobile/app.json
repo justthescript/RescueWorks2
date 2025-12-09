@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "RescueWorks",
+    "slug": "rescueworks",
+    "version": "1.0.0",
+    "sdkVersion": "51.0.0",
+    "platforms": [
+      "android",
+      "ios",
+      "web"
+    ]
+  }
+}
