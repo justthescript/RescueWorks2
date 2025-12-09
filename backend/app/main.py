@@ -16,6 +16,7 @@ from .routers import (
     orgs,
     payment_webhooks,
     payments,
+    people,
     pets,
     portal,
     public,
@@ -48,6 +49,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(orgs.router)
 app.include_router(pets.router)
+app.include_router(people.router)
 app.include_router(applications.router)
 app.include_router(foster_coordinator.router)
 app.include_router(medical.router)

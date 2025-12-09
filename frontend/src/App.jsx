@@ -3970,6 +3970,1073 @@ function FosterProfileManagement({ colors, styles }) {
   );
 }
 
+// People Management Components
+function PeoplePage({ colors, styles }) {
+  const [people, setPeople] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [tagFilter, setTagFilter] = useState("");
+  const [selectedPerson, setSelectedPerson] = useState(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+
+  useEffect(() => {
+    loadPeople();
+  }, [searchTerm, tagFilter]);
+
+  const loadPeople = async () => {
+    try {
+      setLoading(true);
+      const params = {};
+      if (searchTerm) params.search = searchTerm;
+      if (tagFilter) params.tag_filter = tagFilter;
+
+      const res = await api.get("/people/", { params });
+      setPeople(res.data);
+    } catch (err) {
+      console.error("Failed to load people:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (showAddForm) {
+    return <AddPersonForm colors={colors} styles={styles} onBack={() => {
+      setShowAddForm(false);
+      loadPeople();
+    }} />;
+  }
+
+  if (selectedPerson) {
+    return <PersonProfile
+      colors={colors}
+      styles={styles}
+      personId={selectedPerson}
+      onBack={() => {
+        setSelectedPerson(null);
+        loadPeople();
+      }}
+    />;
+  }
+
+  const getPersonTags = (person) => {
+    const tags = [];
+    if (person.tag_adopter) tags.push({ label: "Adopter", color: colors.success });
+    if (person.tag_potential_adopter) tags.push({ label: "Potential Adopter", color: colors.accent });
+    if (person.tag_foster) tags.push({ label: "Foster", color: colors.warning });
+    if (person.tag_current_foster) tags.push({ label: "Current Foster", color: colors.success });
+    if (person.tag_volunteer) tags.push({ label: "Volunteer", color: colors.accent });
+    if (person.tag_donor) tags.push({ label: "Donor", color: "#8b5cf6" });
+    if (person.tag_board_member) tags.push({ label: "Board Member", color: "#ec4899" });
+    return tags;
+  };
+
+  return (
+    <div style={styles.content}>
+      <div style={styles.card}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+          <div>
+            <h1 style={{ fontSize: "1.75rem", fontWeight: 700, marginBottom: "0.5rem" }}>
+              👥 People
+            </h1>
+            <p style={{ color: colors.textMuted, fontSize: "0.95rem" }}>
+              Manage contacts, adopters, fosters, volunteers, and donors
+            </p>
+          </div>
+          <button
+            onClick={() => setShowAddForm(true)}
+            style={{
+              ...styles.button("primary"),
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem"
+            }}
+          >
+            <span>➕</span> Add Person
+          </button>
+        </div>
+
+        {/* Search and Filter */}
+        <div style={{ marginBottom: "1.5rem", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+          <input
+            type="text"
+            placeholder="Search by name, email, or phone..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={styles.input}
+          />
+          <select
+            value={tagFilter}
+            onChange={(e) => setTagFilter(e.target.value)}
+            style={styles.input}
+          >
+            <option value="">All Tags</option>
+            <optgroup label="Adopter Tags">
+              <option value="adopter">Adopter</option>
+              <option value="potential_adopter">Potential Adopter</option>
+              <option value="adopt_waitlist">Adopt Waitlist</option>
+            </optgroup>
+            <optgroup label="Foster Tags">
+              <option value="foster">Foster</option>
+              <option value="current_foster">Current Foster</option>
+              <option value="available_foster">Available Foster</option>
+              <option value="dormant_foster">Dormant Foster</option>
+            </optgroup>
+            <optgroup label="Other Tags">
+              <option value="volunteer">Volunteer</option>
+              <option value="donor">Donor</option>
+              <option value="board_member">Board Member</option>
+            </optgroup>
+          </select>
+        </div>
+
+        {loading ? (
+          <div style={{ textAlign: "center", padding: "2rem", color: colors.textMuted }}>
+            Loading people...
+          </div>
+        ) : people.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "2rem", color: colors.textMuted }}>
+            No people found. Add someone to get started!
+          </div>
+        ) : (
+          <div style={{ display: "grid", gap: "1rem" }}>
+            {people.map((person) => (
+              <div
+                key={person.id}
+                onClick={() => setSelectedPerson(person.id)}
+                style={{
+                  padding: "1.25rem",
+                  border: `1px solid ${colors.cardBorder}`,
+                  borderRadius: "0.75rem",
+                  background: colors.background,
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center"
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = colors.accent;
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                  e.currentTarget.style.boxShadow = colors.shadowLg;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = colors.cardBorder;
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.boxShadow = "none";
+                }}
+              >
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "0.5rem" }}>
+                    <div style={{ fontWeight: 600, fontSize: "1.1rem" }}>
+                      {person.first_name} {person.last_name}
+                    </div>
+                    <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                      {getPersonTags(person).map((tag, idx) => (
+                        <span
+                          key={idx}
+                          style={{
+                            padding: "0.25rem 0.625rem",
+                            borderRadius: "9999px",
+                            fontSize: "0.75rem",
+                            fontWeight: 500,
+                            background: tag.color,
+                            color: "white"
+                          }}
+                        >
+                          {tag.label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: "0.875rem", color: colors.textMuted }}>
+                    {person.email && <span>✉️ {person.email}</span>}
+                    {person.email && person.phone && <span style={{ margin: "0 0.5rem" }}>•</span>}
+                    {person.phone && <span>📞 {person.phone}</span>}
+                  </div>
+                  {(person.city || person.state) && (
+                    <div style={{ fontSize: "0.875rem", color: colors.textMuted, marginTop: "0.25rem" }}>
+                      📍 {[person.city, person.state].filter(Boolean).join(", ")}
+                    </div>
+                  )}
+                </div>
+                <div style={{ color: colors.accent, fontSize: "1.5rem" }}>→</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AddPersonForm({ colors, styles, onBack, personToEdit = null }) {
+  const [formData, setFormData] = useState(personToEdit || {
+    first_name: "",
+    last_name: "",
+    phone: "",
+    email: "",
+    street_1: "",
+    street_2: "",
+    city: "",
+    state: "",
+    country: "United States",
+    zip_code: "",
+    // Adopter tags
+    tag_adopter: false,
+    tag_potential_adopter: false,
+    tag_adopt_waitlist: false,
+    tag_do_not_adopt: false,
+    // Foster tags
+    tag_foster: false,
+    tag_available_foster: false,
+    tag_current_foster: false,
+    tag_dormant_foster: false,
+    tag_foster_waitlist: false,
+    tag_do_not_foster: false,
+    // Volunteer tags
+    tag_volunteer: false,
+    tag_do_not_volunteer: false,
+    // Misc tags
+    tag_donor: false,
+    tag_board_member: false,
+    tag_has_dogs: false,
+    tag_has_cats: false,
+    tag_has_kids: false,
+    tag_processing_application: false,
+    tag_owner_surrender: false,
+  });
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
+    setLoading(true);
+
+    try {
+      if (personToEdit) {
+        await api.put(`/people/${personToEdit.id}`, formData);
+        setSuccess("Person updated successfully!");
+      } else {
+        await api.post("/people/", { ...formData, org_id: 1 });
+        setSuccess("Person added successfully!");
+      }
+
+      setTimeout(() => {
+        onBack();
+      }, 1500);
+    } catch (err) {
+      console.error("Failed to save person:", err);
+      if (err.response?.data?.detail) {
+        setError(typeof err.response.data.detail === "string"
+          ? err.response.data.detail
+          : JSON.stringify(err.response.data.detail));
+      } else {
+        setError("Something went wrong while saving the person.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={styles.content}>
+      <div style={styles.card}>
+        <div style={{ marginBottom: "1.5rem" }}>
+          <button
+            onClick={onBack}
+            style={{
+              ...styles.button("secondary"),
+              marginBottom: "1rem",
+              background: "transparent",
+              border: `1px solid ${colors.cardBorder}`,
+              color: colors.text
+            }}
+          >
+            ← Back to People
+          </button>
+          <h1 style={{ fontSize: "1.75rem", fontWeight: 700, marginBottom: "0.5rem" }}>
+            {personToEdit ? "Edit Person" : "Add Person"}
+          </h1>
+          <p style={{ color: colors.textMuted, fontSize: "0.95rem" }}>
+            {personToEdit ? "Update person information and tags" : "Add a new person to your organization"}
+          </p>
+        </div>
+
+        {error && (
+          <div style={{
+            padding: "1rem",
+            background: "#fee",
+            border: "1px solid #fcc",
+            borderRadius: "0.5rem",
+            color: "#c33",
+            marginBottom: "1rem"
+          }}>
+            {error}
+          </div>
+        )}
+
+        {success && (
+          <div style={{
+            padding: "1rem",
+            background: "#efe",
+            border: "1px solid #cfc",
+            borderRadius: "0.5rem",
+            color: "#3c3",
+            marginBottom: "1rem"
+          }}>
+            {success}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          {/* Profile Section */}
+          <div style={{ marginBottom: "2rem" }}>
+            <h2 style={{ fontSize: "1.25rem", fontWeight: 600, marginBottom: "1rem" }}>
+              Profile
+            </h2>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+              <div>
+                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 500, color: colors.text }}>
+                  First Name *
+                </label>
+                <input
+                  type="text"
+                  name="first_name"
+                  value={formData.first_name}
+                  onChange={handleChange}
+                  required
+                  style={styles.input}
+                />
+              </div>
+              <div>
+                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 500, color: colors.text }}>
+                  Last Name *
+                </label>
+                <input
+                  type="text"
+                  name="last_name"
+                  value={formData.last_name}
+                  onChange={handleChange}
+                  required
+                  style={styles.input}
+                />
+              </div>
+              <div>
+                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 500, color: colors.text }}>
+                  Phone
+                </label>
+                <input
+                  type="tel"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  placeholder="+1"
+                  style={styles.input}
+                />
+              </div>
+              <div>
+                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 500, color: colors.text }}>
+                  Email
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  style={styles.input}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Address Section */}
+          <div style={{ marginBottom: "2rem" }}>
+            <h2 style={{ fontSize: "1.25rem", fontWeight: 600, marginBottom: "1rem" }}>
+              Address
+            </h2>
+            <div style={{ display: "grid", gap: "1rem" }}>
+              <div>
+                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 500, color: colors.text }}>
+                  Street 1
+                </label>
+                <input
+                  type="text"
+                  name="street_1"
+                  value={formData.street_1}
+                  onChange={handleChange}
+                  style={styles.input}
+                />
+              </div>
+              <div>
+                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 500, color: colors.text }}>
+                  Street 2
+                </label>
+                <input
+                  type="text"
+                  name="street_2"
+                  value={formData.street_2}
+                  onChange={handleChange}
+                  style={styles.input}
+                />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+                <div>
+                  <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 500, color: colors.text }}>
+                    City
+                  </label>
+                  <input
+                    type="text"
+                    name="city"
+                    value={formData.city}
+                    onChange={handleChange}
+                    style={styles.input}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 500, color: colors.text }}>
+                    State
+                  </label>
+                  <input
+                    type="text"
+                    name="state"
+                    value={formData.state}
+                    onChange={handleChange}
+                    placeholder="Select..."
+                    style={styles.input}
+                  />
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+                <div>
+                  <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 500, color: colors.text }}>
+                    Country
+                  </label>
+                  <input
+                    type="text"
+                    name="country"
+                    value={formData.country}
+                    onChange={handleChange}
+                    placeholder="Select..."
+                    style={styles.input}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 500, color: colors.text }}>
+                    Zip code
+                  </label>
+                  <input
+                    type="text"
+                    name="zip_code"
+                    value={formData.zip_code}
+                    onChange={handleChange}
+                    style={styles.input}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Tags Section */}
+          <div style={{ marginBottom: "2rem" }}>
+            <h2 style={{ fontSize: "1.25rem", fontWeight: 600, marginBottom: "1rem" }}>
+              Tags
+            </h2>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "2rem" }}>
+              {/* Adopter Tags */}
+              <div>
+                <h3 style={{ fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.75rem", color: colors.textMuted }}>
+                  Adopter Tags
+                </h3>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+                    <input type="checkbox" name="tag_adopter" checked={formData.tag_adopter} onChange={handleChange} />
+                    <span style={{ color: colors.text }}>Adopter</span>
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+                    <input type="checkbox" name="tag_potential_adopter" checked={formData.tag_potential_adopter} onChange={handleChange} />
+                    <span style={{ color: colors.text }}>Potential Adopter</span>
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+                    <input type="checkbox" name="tag_adopt_waitlist" checked={formData.tag_adopt_waitlist} onChange={handleChange} />
+                    <span style={{ color: colors.text }}>Adopt Waitlist</span>
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+                    <input type="checkbox" name="tag_do_not_adopt" checked={formData.tag_do_not_adopt} onChange={handleChange} />
+                    <span style={{ color: colors.text }}>Do Not Adopt</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Foster Tags */}
+              <div>
+                <h3 style={{ fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.75rem", color: colors.textMuted }}>
+                  Foster Tags
+                </h3>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+                    <input type="checkbox" name="tag_foster" checked={formData.tag_foster} onChange={handleChange} />
+                    <span style={{ color: colors.text }}>Foster</span>
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+                    <input type="checkbox" name="tag_available_foster" checked={formData.tag_available_foster} onChange={handleChange} />
+                    <span style={{ color: colors.text }}>Available Foster</span>
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+                    <input type="checkbox" name="tag_current_foster" checked={formData.tag_current_foster} onChange={handleChange} />
+                    <span style={{ color: colors.text }}>Current Foster</span>
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+                    <input type="checkbox" name="tag_dormant_foster" checked={formData.tag_dormant_foster} onChange={handleChange} />
+                    <span style={{ color: colors.text }}>Dormant Foster</span>
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+                    <input type="checkbox" name="tag_foster_waitlist" checked={formData.tag_foster_waitlist} onChange={handleChange} />
+                    <span style={{ color: colors.text }}>Foster Waitlist</span>
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+                    <input type="checkbox" name="tag_do_not_foster" checked={formData.tag_do_not_foster} onChange={handleChange} />
+                    <span style={{ color: colors.text }}>Do Not Foster</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Volunteer Tags */}
+              <div>
+                <h3 style={{ fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.75rem", color: colors.textMuted }}>
+                  Volunteer Tags
+                </h3>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+                    <input type="checkbox" name="tag_volunteer" checked={formData.tag_volunteer} onChange={handleChange} />
+                    <span style={{ color: colors.text }}>Volunteer</span>
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+                    <input type="checkbox" name="tag_do_not_volunteer" checked={formData.tag_do_not_volunteer} onChange={handleChange} />
+                    <span style={{ color: colors.text }}>Do Not Volunteer</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Misc Tags */}
+              <div>
+                <h3 style={{ fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.75rem", color: colors.textMuted }}>
+                  Misc Tags
+                </h3>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+                    <input type="checkbox" name="tag_donor" checked={formData.tag_donor} onChange={handleChange} />
+                    <span style={{ color: colors.text }}>Donor</span>
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+                    <input type="checkbox" name="tag_board_member" checked={formData.tag_board_member} onChange={handleChange} />
+                    <span style={{ color: colors.text }}>Board Member</span>
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+                    <input type="checkbox" name="tag_has_dogs" checked={formData.tag_has_dogs} onChange={handleChange} />
+                    <span style={{ color: colors.text }}>Has Dogs</span>
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+                    <input type="checkbox" name="tag_has_cats" checked={formData.tag_has_cats} onChange={handleChange} />
+                    <span style={{ color: colors.text }}>Has Cats</span>
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+                    <input type="checkbox" name="tag_has_kids" checked={formData.tag_has_kids} onChange={handleChange} />
+                    <span style={{ color: colors.text }}>Has Kids</span>
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+                    <input type="checkbox" name="tag_processing_application" checked={formData.tag_processing_application} onChange={handleChange} />
+                    <span style={{ color: colors.text }}>Processing Application</span>
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+                    <input type="checkbox" name="tag_owner_surrender" checked={formData.tag_owner_surrender} onChange={handleChange} />
+                    <span style={{ color: colors.text }}>Owner Surrender</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: "1rem", justifyContent: "flex-end" }}>
+            <button
+              type="button"
+              onClick={onBack}
+              style={{
+                ...styles.button("secondary"),
+                background: "transparent",
+                border: `1px solid ${colors.cardBorder}`,
+                color: colors.text
+              }}
+              disabled={loading}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              style={styles.button("primary")}
+              disabled={loading}
+            >
+              {loading ? (personToEdit ? "Updating..." : "Adding...") : (personToEdit ? "Update Person" : "Add Person")}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function PersonProfile({ colors, styles, personId, onBack }) {
+  const [person, setPerson] = useState(null);
+  const [activeTab, setActiveTab] = useState("overview");
+  const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  const [notes, setNotes] = useState([]);
+  const [applications, setApplications] = useState([]);
+  const [documents, setDocuments] = useState([]);
+  const [newNote, setNewNote] = useState("");
+
+  useEffect(() => {
+    loadPerson();
+    loadNotes();
+    loadApplications();
+    loadDocuments();
+  }, [personId]);
+
+  const loadPerson = async () => {
+    try {
+      const res = await api.get(`/people/${personId}`);
+      setPerson(res.data);
+      setLoading(false);
+    } catch (err) {
+      console.error("Failed to load person:", err);
+      setLoading(false);
+    }
+  };
+
+  const loadNotes = async () => {
+    try {
+      const res = await api.get(`/people/${personId}/notes`);
+      setNotes(res.data);
+    } catch (err) {
+      console.error("Failed to load notes:", err);
+    }
+  };
+
+  const loadApplications = async () => {
+    try {
+      const res = await api.get(`/people/${personId}/applications`);
+      setApplications(res.data);
+    } catch (err) {
+      console.error("Failed to load applications:", err);
+    }
+  };
+
+  const loadDocuments = async () => {
+    try {
+      const res = await api.get(`/people/${personId}/documents`);
+      setDocuments(res.data);
+    } catch (err) {
+      console.error("Failed to load documents:", err);
+    }
+  };
+
+  const handleAddNote = async () => {
+    if (!newNote.trim()) return;
+
+    try {
+      await api.post(`/people/${personId}/notes`, { note_text: newNote });
+      setNewNote("");
+      loadNotes();
+    } catch (err) {
+      console.error("Failed to add note:", err);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div style={styles.content}>
+        <div style={{ textAlign: "center", padding: "4rem", color: colors.textMuted }}>
+          Loading...
+        </div>
+      </div>
+    );
+  }
+
+  if (!person) {
+    return (
+      <div style={styles.content}>
+        <div style={{ textAlign: "center", padding: "4rem", color: colors.textMuted }}>
+          Person not found
+        </div>
+      </div>
+    );
+  }
+
+  if (isEditing) {
+    return <AddPersonForm
+      colors={colors}
+      styles={styles}
+      personToEdit={person}
+      onBack={() => {
+        setIsEditing(false);
+        loadPerson();
+      }}
+    />;
+  }
+
+  const getPersonTags = () => {
+    const tags = [];
+    if (person.tag_adopter) tags.push("Adopter");
+    if (person.tag_potential_adopter) tags.push("Potential Adopter");
+    if (person.tag_foster) tags.push("Foster");
+    if (person.tag_current_foster) tags.push("Current Foster");
+    if (person.tag_volunteer) tags.push("Volunteer");
+    if (person.tag_donor) tags.push("Donor");
+    if (person.tag_board_member) tags.push("Board Member");
+    return tags;
+  };
+
+  return (
+    <div style={styles.content}>
+      <div style={styles.card}>
+        <button
+          onClick={onBack}
+          style={{
+            ...styles.button("secondary"),
+            marginBottom: "1rem",
+            background: "transparent",
+            border: `1px solid ${colors.cardBorder}`,
+            color: colors.text
+          }}
+        >
+          ← Back to People
+        </button>
+
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "start", gap: "2rem", marginBottom: "2rem" }}>
+          <div style={{
+            width: "120px",
+            height: "120px",
+            borderRadius: "50%",
+            background: colors.accentGradient,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "3rem",
+            color: "white",
+            flexShrink: 0
+          }}>
+            👤
+          </div>
+          <div style={{ flex: 1 }}>
+            <h1 style={{ fontSize: "2rem", fontWeight: 700, marginBottom: "0.5rem" }}>
+              {person.first_name} {person.last_name}
+            </h1>
+            <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem", flexWrap: "wrap" }}>
+              {getPersonTags().map((tag, idx) => (
+                <span
+                  key={idx}
+                  style={{
+                    padding: "0.375rem 0.875rem",
+                    borderRadius: "9999px",
+                    fontSize: "0.875rem",
+                    fontWeight: 500,
+                    background: colors.accent,
+                    color: "white"
+                  }}
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+            <button
+              onClick={() => setIsEditing(true)}
+              style={styles.button("primary")}
+            >
+              Edit
+            </button>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div style={{
+          borderBottom: `2px solid ${colors.cardBorder}`,
+          marginBottom: "1.5rem",
+          display: "flex",
+          gap: "2rem"
+        }}>
+          {["overview", "applications", "notes", "files"].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              style={{
+                padding: "0.75rem 0",
+                background: "transparent",
+                border: "none",
+                borderBottom: activeTab === tab ? `2px solid ${colors.accent}` : "2px solid transparent",
+                color: activeTab === tab ? colors.accent : colors.textMuted,
+                fontWeight: activeTab === tab ? 600 : 400,
+                cursor: "pointer",
+                fontSize: "1rem",
+                textTransform: "capitalize",
+                transition: "all 0.2s ease"
+              }}
+            >
+              {tab.replace("_", " ")}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab Content */}
+        {activeTab === "overview" && (
+          <div>
+            <h2 style={{ fontSize: "1.25rem", fontWeight: 600, marginBottom: "1rem" }}>
+              Profile Information
+            </h2>
+            <div style={{ display: "grid", gap: "1rem" }}>
+              <div>
+                <strong style={{ color: colors.textMuted }}>Name:</strong>
+                <div>{person.first_name} {person.last_name}</div>
+              </div>
+              {person.phone && (
+                <div>
+                  <strong style={{ color: colors.textMuted }}>Phone:</strong>
+                  <div>{person.phone}</div>
+                </div>
+              )}
+              {person.email && (
+                <div>
+                  <strong style={{ color: colors.textMuted }}>Email:</strong>
+                  <div>{person.email}</div>
+                </div>
+              )}
+              {(person.street_1 || person.city || person.state) && (
+                <div>
+                  <strong style={{ color: colors.textMuted }}>Address:</strong>
+                  <div>
+                    {person.street_1 && <div>{person.street_1}</div>}
+                    {person.street_2 && <div>{person.street_2}</div>}
+                    {(person.city || person.state || person.zip_code) && (
+                      <div>
+                        {[person.city, person.state, person.zip_code].filter(Boolean).join(", ")}
+                      </div>
+                    )}
+                    {person.country && <div>{person.country}</div>}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Tags Display */}
+            <div style={{ marginTop: "2rem" }}>
+              <h2 style={{ fontSize: "1.25rem", fontWeight: 600, marginBottom: "1rem" }}>
+                Tags
+              </h2>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "2rem" }}>
+                {/* Adopter Tags */}
+                {(person.tag_adopter || person.tag_potential_adopter || person.tag_adopt_waitlist || person.tag_do_not_adopt) && (
+                  <div>
+                    <h3 style={{ fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.5rem", color: colors.textMuted }}>
+                      Adopter Tags
+                    </h3>
+                    <div style={{ fontSize: "0.875rem", color: colors.text }}>
+                      {person.tag_adopter && <div>• Adopter</div>}
+                      {person.tag_potential_adopter && <div>• Potential Adopter</div>}
+                      {person.tag_adopt_waitlist && <div>• Adopt Waitlist</div>}
+                      {person.tag_do_not_adopt && <div>• Do Not Adopt</div>}
+                    </div>
+                  </div>
+                )}
+
+                {/* Foster Tags */}
+                {(person.tag_foster || person.tag_available_foster || person.tag_current_foster || person.tag_dormant_foster || person.tag_foster_waitlist || person.tag_do_not_foster) && (
+                  <div>
+                    <h3 style={{ fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.5rem", color: colors.textMuted }}>
+                      Foster Tags
+                    </h3>
+                    <div style={{ fontSize: "0.875rem", color: colors.text }}>
+                      {person.tag_foster && <div>• Foster</div>}
+                      {person.tag_available_foster && <div>• Available Foster</div>}
+                      {person.tag_current_foster && <div>• Current Foster</div>}
+                      {person.tag_dormant_foster && <div>• Dormant Foster</div>}
+                      {person.tag_foster_waitlist && <div>• Foster Waitlist</div>}
+                      {person.tag_do_not_foster && <div>• Do Not Foster</div>}
+                    </div>
+                  </div>
+                )}
+
+                {/* Volunteer Tags */}
+                {(person.tag_volunteer || person.tag_do_not_volunteer) && (
+                  <div>
+                    <h3 style={{ fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.5rem", color: colors.textMuted }}>
+                      Volunteer Tags
+                    </h3>
+                    <div style={{ fontSize: "0.875rem", color: colors.text }}>
+                      {person.tag_volunteer && <div>• Volunteer</div>}
+                      {person.tag_do_not_volunteer && <div>• Do Not Volunteer</div>}
+                    </div>
+                  </div>
+                )}
+
+                {/* Misc Tags */}
+                {(person.tag_donor || person.tag_board_member || person.tag_has_dogs || person.tag_has_cats || person.tag_has_kids || person.tag_processing_application || person.tag_owner_surrender) && (
+                  <div>
+                    <h3 style={{ fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.5rem", color: colors.textMuted }}>
+                      Misc Tags
+                    </h3>
+                    <div style={{ fontSize: "0.875rem", color: colors.text }}>
+                      {person.tag_donor && <div>• Donor</div>}
+                      {person.tag_board_member && <div>• Board Member</div>}
+                      {person.tag_has_dogs && <div>• Has Dogs</div>}
+                      {person.tag_has_cats && <div>• Has Cats</div>}
+                      {person.tag_has_kids && <div>• Has Kids</div>}
+                      {person.tag_processing_application && <div>• Processing Application</div>}
+                      {person.tag_owner_surrender && <div>• Owner Surrender</div>}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "applications" && (
+          <div>
+            <h2 style={{ fontSize: "1.25rem", fontWeight: 600, marginBottom: "1rem" }}>
+              Applications
+            </h2>
+            {applications.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "2rem", color: colors.textMuted }}>
+                No applications found
+              </div>
+            ) : (
+              <div style={{ display: "grid", gap: "1rem" }}>
+                {applications.map((app) => (
+                  <div
+                    key={app.id}
+                    style={{
+                      padding: "1rem",
+                      border: `1px solid ${colors.cardBorder}`,
+                      borderRadius: "0.5rem",
+                      background: colors.background
+                    }}
+                  >
+                    <div style={{ fontWeight: 600, marginBottom: "0.5rem" }}>
+                      {app.type.charAt(0).toUpperCase() + app.type.slice(1)} Application
+                    </div>
+                    <div style={{ fontSize: "0.875rem", color: colors.textMuted }}>
+                      Status: {app.status}
+                    </div>
+                    <div style={{ fontSize: "0.875rem", color: colors.textMuted }}>
+                      Created: {new Date(app.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === "notes" && (
+          <div>
+            <h2 style={{ fontSize: "1.25rem", fontWeight: 600, marginBottom: "1rem" }}>
+              Notes
+            </h2>
+            <div style={{ marginBottom: "1.5rem" }}>
+              <textarea
+                value={newNote}
+                onChange={(e) => setNewNote(e.target.value)}
+                placeholder="Add a note..."
+                style={{
+                  ...styles.input,
+                  minHeight: "100px",
+                  marginBottom: "0.5rem"
+                }}
+              />
+              <button
+                onClick={handleAddNote}
+                style={styles.button("primary")}
+                disabled={!newNote.trim()}
+              >
+                Add Note
+              </button>
+            </div>
+            {notes.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "2rem", color: colors.textMuted }}>
+                No notes yet
+              </div>
+            ) : (
+              <div style={{ display: "grid", gap: "1rem" }}>
+                {notes.map((note) => (
+                  <div
+                    key={note.id}
+                    style={{
+                      padding: "1rem",
+                      border: `1px solid ${colors.cardBorder}`,
+                      borderRadius: "0.5rem",
+                      background: colors.background
+                    }}
+                  >
+                    <div style={{ marginBottom: "0.5rem" }}>{note.note_text}</div>
+                    <div style={{ fontSize: "0.75rem", color: colors.textMuted }}>
+                      {new Date(note.created_at).toLocaleString()}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === "files" && (
+          <div>
+            <h2 style={{ fontSize: "1.25rem", fontWeight: 600, marginBottom: "1rem" }}>
+              Files
+            </h2>
+            {documents.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "2rem", color: colors.textMuted }}>
+                No files uploaded
+              </div>
+            ) : (
+              <div style={{ display: "grid", gap: "1rem" }}>
+                {documents.map((doc) => (
+                  <div
+                    key={doc.id}
+                    style={{
+                      padding: "1rem",
+                      border: `1px solid ${colors.cardBorder}`,
+                      borderRadius: "0.5rem",
+                      background: colors.background
+                    }}
+                  >
+                    <div style={{ fontWeight: 600, marginBottom: "0.5rem" }}>
+                      {doc.file_path}
+                    </div>
+                    <div style={{ fontSize: "0.875rem", color: colors.textMuted }}>
+                      Type: {doc.file_type || "Unknown"}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [token, setToken] = useState(null);
   const [view, setView] = useState("dashboard");
@@ -4040,6 +5107,24 @@ export default function App() {
 >
   📝 Intake
           </button>
+
+          <button
+            style={styles.navButton(view === "people")}
+            onClick={() => setView("people")}
+            onMouseEnter={(e) => {
+              if (view !== "people") {
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (view !== "people") {
+                e.currentTarget.style.background = "transparent";
+              }
+            }}
+          >
+            👥 People
+          </button>
+
           <button
             style={styles.navButton(view === "my")}
             onClick={() => setView("my")}
@@ -4140,6 +5225,7 @@ export default function App() {
       {view === "dashboard" && <Dashboard colors={colors} styles={styles} />}
       {view === "pets" && <PetsPage colors={colors} styles={styles} />}
       {view === "intake" && <AnimalIntakeForm colors={colors} styles={styles} />}
+      {view === "people" && <PeoplePage colors={colors} styles={styles} />}
       {view === "settings" && <SettingsPage colors={colors} styles={styles} />}
       {view === "my" && <MyPortal colors={colors} styles={styles} />}
       {view === "vet" && <VetPortal colors={colors} styles={styles} />}

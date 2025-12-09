@@ -700,3 +700,126 @@ class PortalSummary(BaseModel):
     my_applications: List[Application] = []
     my_foster_pets: List[Pet] = []
     my_tasks: List[Task] = []
+
+
+class PersonBase(BaseModel):
+    first_name: str = Field(..., min_length=1, max_length=100)
+    last_name: str = Field(..., min_length=1, max_length=100)
+    phone: Optional[str] = Field(None, max_length=50)
+    email: Optional[EmailStr] = None
+
+    # Address
+    street_1: Optional[str] = Field(None, max_length=200)
+    street_2: Optional[str] = Field(None, max_length=200)
+    city: Optional[str] = Field(None, max_length=100)
+    state: Optional[str] = Field(None, max_length=50)
+    country: Optional[str] = Field(None, max_length=100)
+    zip_code: Optional[str] = Field(None, max_length=20)
+
+    # Adopter Tags
+    tag_adopter: bool = False
+    tag_potential_adopter: bool = False
+    tag_adopt_waitlist: bool = False
+    tag_do_not_adopt: bool = False
+
+    # Foster Tags
+    tag_foster: bool = False
+    tag_available_foster: bool = False
+    tag_current_foster: bool = False
+    tag_dormant_foster: bool = False
+    tag_foster_waitlist: bool = False
+    tag_do_not_foster: bool = False
+
+    # Volunteer Tags
+    tag_volunteer: bool = False
+    tag_do_not_volunteer: bool = False
+
+    # Misc Tags
+    tag_donor: bool = False
+    tag_board_member: bool = False
+    tag_has_dogs: bool = False
+    tag_has_cats: bool = False
+    tag_has_kids: bool = False
+    tag_processing_application: bool = False
+    tag_owner_surrender: bool = False
+
+    user_id: Optional[int] = None
+
+
+class PersonCreate(PersonBase):
+    org_id: int
+
+
+class PersonUpdate(BaseModel):
+    first_name: Optional[str] = Field(None, min_length=1, max_length=100)
+    last_name: Optional[str] = Field(None, min_length=1, max_length=100)
+    phone: Optional[str] = Field(None, max_length=50)
+    email: Optional[EmailStr] = None
+
+    # Address
+    street_1: Optional[str] = Field(None, max_length=200)
+    street_2: Optional[str] = Field(None, max_length=200)
+    city: Optional[str] = Field(None, max_length=100)
+    state: Optional[str] = Field(None, max_length=50)
+    country: Optional[str] = Field(None, max_length=100)
+    zip_code: Optional[str] = Field(None, max_length=20)
+
+    # Adopter Tags
+    tag_adopter: Optional[bool] = None
+    tag_potential_adopter: Optional[bool] = None
+    tag_adopt_waitlist: Optional[bool] = None
+    tag_do_not_adopt: Optional[bool] = None
+
+    # Foster Tags
+    tag_foster: Optional[bool] = None
+    tag_available_foster: Optional[bool] = None
+    tag_current_foster: Optional[bool] = None
+    tag_dormant_foster: Optional[bool] = None
+    tag_foster_waitlist: Optional[bool] = None
+    tag_do_not_foster: Optional[bool] = None
+
+    # Volunteer Tags
+    tag_volunteer: Optional[bool] = None
+    tag_do_not_volunteer: Optional[bool] = None
+
+    # Misc Tags
+    tag_donor: Optional[bool] = None
+    tag_board_member: Optional[bool] = None
+    tag_has_dogs: Optional[bool] = None
+    tag_has_cats: Optional[bool] = None
+    tag_has_kids: Optional[bool] = None
+    tag_processing_application: Optional[bool] = None
+    tag_owner_surrender: Optional[bool] = None
+
+    user_id: Optional[int] = None
+
+
+class Person(PersonBase):
+    id: int
+    org_id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        orm_mode = True
+
+
+class PersonNoteBase(BaseModel):
+    note_text: str = Field(..., min_length=1)
+
+
+class PersonNoteCreate(PersonNoteBase):
+    person_id: int
+    org_id: int
+
+
+class PersonNote(PersonNoteBase):
+    id: int
+    org_id: int
+    person_id: int
+    created_by_user_id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        orm_mode = True
