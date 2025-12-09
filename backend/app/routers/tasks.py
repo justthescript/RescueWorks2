@@ -15,10 +15,8 @@ def create_task(
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
-    if user.org_id != task_in.org_id:
-        raise HTTPException(status_code=400, detail="User org mismatch")
     task = models.Task(
-        org_id=task_in.org_id,
+        org_id=user.org_id,
         title=task_in.title,
         description=task_in.description,
         status=task_in.status,
