@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import api, { setAuthToken } from "./api";
+import { getBreedsForSpecies } from "./breeds";
+
 
 // Modern color palette with dark mode support
 const themes = {
@@ -357,23 +359,23 @@ function Login({ onLogin }) {
 
 import { getBreedsForSpecies } from "./breeds";
 
-const [formData, setFormData] = useState({
-  name: "",
-  species: "",
-  sex: "",
-  status: "intake",
+function AnimalIntakeForm({ colors, styles }) {
+  const [formData, setFormData] = useState({
+    name: "",
+    species: "",
+    sex: "",
+    status: "intake",
 
-  intake_date: "",
-  microchip_number: "",
-  weight: "",
-  altered_status: "",
-  date_of_birth: "",
+    intake_date: "",
+    microchip_number: "",
+    weight: "",
+    altered_status: "",
+    date_of_birth: "",
 
-  description_public: "",
-  description_internal: "",
-  photo_url: "",
-});
-
+    description_public: "",
+    description_internal: "",
+    photo_url: "",
+  });
 
   const [breedInputs, setBreedInputs] = useState(["", "", ""]);
   const [openBreedIndex, setOpenBreedIndex] = useState(null);
@@ -480,7 +482,7 @@ const [formData, setFormData] = useState({
     } finally {
       setLoading(false);
     }
-  };
+}};
 
   return (
     <div style={styles.content}>
