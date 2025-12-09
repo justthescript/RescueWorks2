@@ -126,6 +126,33 @@ class User(UserBase):
         orm_mode = True
 
 
+class RoleBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+
+class RoleCreate(RoleBase):
+    pass
+
+
+class Role(RoleBase):
+    id: int
+
+    class Config:
+        orm_mode = True
+
+
+class UserRoleAssignment(BaseModel):
+    role_id: int
+
+
+class UserWithRoles(User):
+    roles: List[Role] = []
+
+    class Config:
+        orm_mode = True
+
+
 class PetBase(BaseModel):
     name: str = Field(
         ..., min_length=1, max_length=100, description="Pet name (required)"
