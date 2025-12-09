@@ -46,7 +46,7 @@ def create_foster_profile(
     db_profile = models.FosterProfile(
         user_id=current_user.id,
         org_id=current_user.org_id,
-        **profile.dict(exclude={"org_id"}),
+        **profile.dict(),
     )
     db.add(db_profile)
     db.commit()

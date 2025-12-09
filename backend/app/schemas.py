@@ -609,7 +609,7 @@ class FosterProfileBase(BaseModel):
 
 
 class FosterProfileCreate(FosterProfileBase):
-    org_id: int
+    pass
 
 
 class FosterProfileUpdate(BaseModel):
