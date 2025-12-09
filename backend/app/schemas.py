@@ -697,6 +697,28 @@ class FosterCoordinatorStats(BaseModel):
     available_foster_capacity: int
 
 
+class FosterPlacementNoteBase(BaseModel):
+    note_type: str = "progress"
+    note_text: str
+    is_important: bool = False
+
+
+class FosterPlacementNoteCreate(FosterPlacementNoteBase):
+    placement_id: int
+
+
+class FosterPlacementNote(FosterPlacementNoteBase):
+    id: int
+    placement_id: int
+    org_id: int
+    created_by_user_id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        orm_mode = True
+
+
 class PortalSummary(BaseModel):
     my_applications: List[Application] = []
     my_foster_pets: List[Pet] = []

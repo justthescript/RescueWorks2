@@ -20,6 +20,7 @@ from .routers import (
     pets,
     portal,
     public,
+    reports,
     settings,
     stats,
     tasks,
@@ -64,6 +65,7 @@ app.include_router(portal.router)
 app.include_router(vet.router)
 app.include_router(files.router)
 app.include_router(stats.router)
+app.include_router(reports.router)
 app.include_router(payment_webhooks.router)
 
 

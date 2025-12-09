@@ -287,6 +287,27 @@ class FosterPlacement(Base):
 
     foster_profile = relationship("FosterProfile", back_populates="placements")
     pet = relationship("Pet")
+    progress_notes = relationship("FosterPlacementNote", back_populates="placement", cascade="all, delete-orphan")
+
+
+class FosterPlacementNote(Base):
+    """Progress notes and updates for foster placements"""
+    __tablename__ = "foster_placement_notes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    placement_id = Column(Integer, ForeignKey("foster_placements.id"), nullable=False)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
+    created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    note_type = Column(String, default="progress")  # progress, health, behavior, other
+    note_text = Column(Text, nullable=False)
+    is_important = Column(Boolean, default=False)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    placement = relationship("FosterPlacement", back_populates="progress_notes")
+    created_by = relationship("User")
 
 
 class MedicalRecord(Base):

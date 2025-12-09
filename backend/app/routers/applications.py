@@ -63,11 +63,15 @@ def create_application(
 def list_applications(
     type: Optional[schemas.ApplicationType] = None,
     status_filter: Optional[schemas.ApplicationStatus] = None,
+    search: Optional[str] = None,
+    pet_id: Optional[int] = None,
+    created_from: Optional[str] = None,
+    created_to: Optional[str] = None,
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
     """
-    List applications for the current organization.
+    List applications for the current organization with advanced filtering.
 
     Screeners and admins see all applications.
     Other users see only their own applications.
@@ -89,10 +93,41 @@ def list_applications(
     if not privileged:
         q = q.filter(models.Application.applicant_user_id == user.id)
 
+    # Type filter
     if type is not None:
         q = q.filter(models.Application.type == type)
+
+    # Status filter
     if status_filter is not None:
         q = q.filter(models.Application.status == status_filter)
+
+    # Pet filter
+    if pet_id is not None:
+        q = q.filter(models.Application.pet_id == pet_id)
+
+    # Date range filters
+    if created_from:
+        try:
+            from datetime import datetime
+            date_from = datetime.fromisoformat(created_from)
+            q = q.filter(models.Application.created_at >= date_from)
+        except ValueError:
+            pass
+
+    if created_to:
+        try:
+            from datetime import datetime
+            date_to = datetime.fromisoformat(created_to)
+            q = q.filter(models.Application.created_at <= date_to)
+        except ValueError:
+            pass
+
+    # Search filter (search in answers_json or join with user for name search)
+    if search:
+        search_term = f"%{search}%"
+        q = q.join(models.User, models.Application.applicant_user_id == models.User.id).filter(
+            models.User.full_name.ilike(search_term) | models.User.email.ilike(search_term)
+        )
 
     return q.order_by(models.Application.created_at.desc()).all()
 
