@@ -192,7 +192,8 @@ class Application(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
-    applicant_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    applicant_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    applicant_person_id = Column(Integer, ForeignKey("people.id"), nullable=True)
     pet_id = Column(Integer, ForeignKey("pets.id"), nullable=True)
     type = Column(Enum(ApplicationType), nullable=False)
     status = Column(Enum(ApplicationStatus), default=ApplicationStatus.submitted)
@@ -201,6 +202,7 @@ class Application(Base):
 
     organization = relationship("Organization", back_populates="applications")
     applicant = relationship("User")
+    applicant_person = relationship("Person", foreign_keys=[applicant_person_id])
     pet = relationship("Pet")
 
 
@@ -447,6 +449,7 @@ class Document(Base):
     org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
     uploader_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     pet_id = Column(Integer, ForeignKey("pets.id"), nullable=True)
+    person_id = Column(Integer, ForeignKey("people.id"), nullable=True)
     medical_record_id = Column(Integer, ForeignKey("medical_records.id"), nullable=True)
     event_id = Column(Integer, ForeignKey("events.id"), nullable=True)
     task_id = Column(Integer, ForeignKey("tasks.id"), nullable=True)
@@ -454,6 +457,8 @@ class Document(Base):
     file_type = Column(String, nullable=True)
     visibility = Column(Enum(DocumentVisibility), default=DocumentVisibility.internal)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    person = relationship("Person")
 
 
 class OrganizationSettings(Base):
@@ -490,6 +495,77 @@ class Coupon(Base):
     current_uses = Column(Integer, default=0)
     applicable_purpose = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
+
+
+class Person(Base):
+    __tablename__ = "people"
+
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
+
+    # Profile information
+    first_name = Column(String, nullable=False)
+    last_name = Column(String, nullable=False)
+    phone = Column(String, nullable=True)
+    email = Column(String, nullable=True)
+
+    # Address information
+    street_1 = Column(String, nullable=True)
+    street_2 = Column(String, nullable=True)
+    city = Column(String, nullable=True)
+    state = Column(String, nullable=True)
+    country = Column(String, nullable=True)
+    zip_code = Column(String, nullable=True)
+
+    # Adopter Tags
+    tag_adopter = Column(Boolean, default=False)
+    tag_potential_adopter = Column(Boolean, default=False)
+    tag_adopt_waitlist = Column(Boolean, default=False)
+    tag_do_not_adopt = Column(Boolean, default=False)
+
+    # Foster Tags
+    tag_foster = Column(Boolean, default=False)
+    tag_available_foster = Column(Boolean, default=False)
+    tag_current_foster = Column(Boolean, default=False)
+    tag_dormant_foster = Column(Boolean, default=False)
+    tag_foster_waitlist = Column(Boolean, default=False)
+    tag_do_not_foster = Column(Boolean, default=False)
+
+    # Volunteer Tags
+    tag_volunteer = Column(Boolean, default=False)
+    tag_do_not_volunteer = Column(Boolean, default=False)
+
+    # Misc Tags
+    tag_donor = Column(Boolean, default=False)
+    tag_board_member = Column(Boolean, default=False)
+    tag_has_dogs = Column(Boolean, default=False)
+    tag_has_cats = Column(Boolean, default=False)
+    tag_has_kids = Column(Boolean, default=False)
+    tag_processing_application = Column(Boolean, default=False)
+    tag_owner_surrender = Column(Boolean, default=False)
+
+    # Link to user account (if they have one)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("User")
+
+
+class PersonNote(Base):
+    __tablename__ = "person_notes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
+    person_id = Column(Integer, ForeignKey("people.id"), nullable=False)
+    created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    note_text = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    person = relationship("Person")
+    created_by = relationship("User")
 
 
 class AuditLog(Base):
