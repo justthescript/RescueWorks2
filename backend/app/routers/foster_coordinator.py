@@ -7,7 +7,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import and_, func, or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from .. import models, schemas
 from ..deps import get_db, get_current_user
@@ -259,14 +259,39 @@ def get_coordinator_stats(
     )
     avg_placement_duration_days = float(avg_duration_result) if avg_duration_result else None
 
-    # Get recent placements
-    recent_placements = (
+    # Get recent placements with pet information
+    recent_placements_raw = (
         db.query(models.FosterPlacement)
+        .options(joinedload(models.FosterPlacement.pet))
         .filter(models.FosterPlacement.org_id == org_id)
         .order_by(models.FosterPlacement.created_at.desc())
         .limit(10)
         .all()
     )
+
+    # Manually populate pet_name and pet_species for each placement
+    recent_placements = []
+    for placement in recent_placements_raw:
+        placement_dict = {
+            "id": placement.id,
+            "org_id": placement.org_id,
+            "pet_id": placement.pet_id,
+            "foster_profile_id": placement.foster_profile_id,
+            "start_date": placement.start_date,
+            "expected_end_date": placement.expected_end_date,
+            "actual_end_date": placement.actual_end_date,
+            "outcome": placement.outcome,
+            "placement_notes": placement.placement_notes,
+            "return_reason": placement.return_reason,
+            "success_notes": placement.success_notes,
+            "agreement_signed": placement.agreement_signed,
+            "agreement_signed_date": placement.agreement_signed_date,
+            "created_at": placement.created_at,
+            "updated_at": placement.updated_at,
+            "pet_name": placement.pet.name if placement.pet else None,
+            "pet_species": placement.pet.species if placement.pet else None,
+        }
+        recent_placements.append(schemas.FosterPlacement(**placement_dict))
 
     # Calculate available foster capacity
     available_capacity_result = (

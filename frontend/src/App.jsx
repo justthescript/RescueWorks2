@@ -3669,7 +3669,7 @@ function FosterCoordinatorDashboard({ colors, styles }) {
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ borderBottom: `2px solid ${colors.cardBorder}` }}>
-                  <th style={{ padding: "0.75rem", textAlign: "left" }}>Pet ID</th>
+                  <th style={{ padding: "0.75rem", textAlign: "left" }}>Pet Name</th>
                   <th style={{ padding: "0.75rem", textAlign: "left" }}>Start Date</th>
                   <th style={{ padding: "0.75rem", textAlign: "left" }}>Outcome</th>
                   <th style={{ padding: "0.75rem", textAlign: "left" }}>Agreement</th>
@@ -3678,7 +3678,14 @@ function FosterCoordinatorDashboard({ colors, styles }) {
               <tbody>
                 {stats.recent_placements.map((placement) => (
                   <tr key={placement.id} style={{ borderBottom: `1px solid ${colors.cardBorder}` }}>
-                    <td style={{ padding: "0.75rem" }}>{placement.pet_id}</td>
+                    <td style={{ padding: "0.75rem" }}>
+                      {placement.pet_name || `Pet #${placement.pet_id}`}
+                      {placement.pet_species && (
+                        <span style={{ color: colors.textMuted, fontSize: "0.875rem", marginLeft: "0.5rem" }}>
+                          ({placement.pet_species})
+                        </span>
+                      )}
+                    </td>
                     <td style={{ padding: "0.75rem" }}>
                       {new Date(placement.start_date).toLocaleDateString()}
                     </td>

@@ -665,6 +665,8 @@ class FosterPlacement(FosterPlacementBase):
     agreement_signed_date: Optional[datetime]
     created_at: datetime
     updated_at: datetime
+    pet_name: Optional[str] = None
+    pet_species: Optional[str] = None
 
     class Config:
         orm_mode = True
