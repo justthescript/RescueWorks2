@@ -1134,14 +1134,15 @@ function ImageUploadField({ colors, styles, value, onChange, petId }) {
 
   return (
     <div style={{ marginTop: "0.5rem" }}>
-      <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+      <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
         <input
           type="file"
           accept="image/*"
           onChange={handleFileChange}
           style={{
-            flexGrow: 1,
+            flex: "1 1 200px",
             fontSize: "0.8rem",
+            minWidth: 0,
           }}
         />
         <button
@@ -1153,6 +1154,7 @@ function ImageUploadField({ colors, styles, value, onChange, petId }) {
             padding: "0.5rem 0.75rem",
             fontSize: "0.8rem",
             opacity: uploading ? 0.7 : 1,
+            whiteSpace: "nowrap",
           }}
         >
           {uploading ? "Uploading..." : "Upload"}
@@ -1205,6 +1207,8 @@ function PetDetailPanel({ pet, colors, styles, onClose, onPetUpdated }) {
     pet.foster_user_id ? String(pet.foster_user_id) : ""
   );
   const [assigning, setAssigning] = useState(false);
+  const [users, setUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
 
   useEffect(() => {
     setLocalPet(pet);
@@ -1212,6 +1216,20 @@ function PetDetailPanel({ pet, colors, styles, onClose, onPetUpdated }) {
     setError("");
     setSuccess("");
   }, [pet]);
+
+  useEffect(() => {
+    async function fetchUsers() {
+      try {
+        const response = await api.get("/auth/users");
+        setUsers(response.data || []);
+      } catch (err) {
+        console.error("Failed to fetch users:", err);
+      } finally {
+        setLoadingUsers(false);
+      }
+    }
+    fetchUsers();
+  }, []);
 
   const handleFieldChange = (event) => {
     const { name, value } = event.target;
@@ -1257,7 +1275,7 @@ function PetDetailPanel({ pet, colors, styles, onClose, onPetUpdated }) {
   const handleAssignFoster = async () => {
     const fosterId = parseInt(fosterIdInput, 10);
     if (!fosterId) {
-      setError("Enter a numeric foster user id");
+      setError("Please select a foster user");
       return;
     }
 
@@ -1630,20 +1648,26 @@ function PetDetailPanel({ pet, colors, styles, onClose, onPetUpdated }) {
               marginBottom: "0.5rem",
             }}
           >
-            <input
-              type="number"
-              placeholder="Foster user id"
+            <select
               value={fosterIdInput}
               onChange={(event) => setFosterIdInput(event.target.value)}
+              disabled={loadingUsers}
               style={{
                 ...styles.input,
                 fontSize: "0.8rem",
               }}
-            />
+            >
+              <option value="">Select foster...</option>
+              {users.map((user) => (
+                <option key={user.id} value={String(user.id)}>
+                  {user.full_name} ({user.email})
+                </option>
+              ))}
+            </select>
             <button
               type="button"
               onClick={handleAssignFoster}
-              disabled={assigning}
+              disabled={assigning || loadingUsers}
               style={{
                 ...styles.button,
                 fontSize: "0.8rem",
@@ -1671,8 +1695,11 @@ function PetDetailPanel({ pet, colors, styles, onClose, onPetUpdated }) {
               color: colors.textMuted,
             }}
           >
-            Current foster user id:{" "}
-            {localPet.foster_user_id ? localPet.foster_user_id : "None"}
+            Current foster:{" "}
+            {localPet.foster_user_id
+              ? users.find((u) => u.id === localPet.foster_user_id)?.full_name ||
+                `User ID ${localPet.foster_user_id}`
+              : "None"}
           </p>
         </div>
 
@@ -1682,6 +1709,8 @@ function PetDetailPanel({ pet, colors, styles, onClose, onPetUpdated }) {
             display: "flex",
             justifyContent: "space-between",
             gap: "0.75rem",
+            marginTop: "1.5rem",
+            paddingBottom: "1rem",
           }}
         >
           <button
@@ -2215,14 +2244,7 @@ function PetsPage({ colors, styles }) {
 
   return (
     <div style={styles.content}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "1.5rem",
-        }}
-      >
+      <div style={{ marginBottom: "1.5rem" }}>
         <div>
           <h1
             style={{
@@ -2237,13 +2259,14 @@ function PetsPage({ colors, styles }) {
             style={{
               color: colors.textMuted,
               fontSize: "0.95rem",
+              marginBottom: "1rem",
             }}
           >
             Search and edit pets in bulk. Click any card to edit details or
             assign a foster.
           </p>
         </div>
-        <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+        <div style={{ display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap" }}>
           <SearchBar
             value={searchTerm}
             onChange={setSearchTerm}
@@ -2371,8 +2394,8 @@ function SettingsPage({ colors, styles }) {
   useEffect(() => {
     async function load() {
       try {
-        const res = await api.get("/settings");
-        setOrg(res.data.organization);
+        const res = await api.get("/orgs/me");
+        setOrg(res.data);
       } catch (err) {
         console.error("Failed to load settings", err);
       }
@@ -2385,12 +2408,13 @@ function SettingsPage({ colors, styles }) {
     setSaving(true);
     setMessage("");
     try {
-      await api.put("/settings", { organization: org });
+      await api.put("/orgs/me", org);
       setMessage("Settings saved successfully! ✅");
       setTimeout(() => setMessage(""), 3000);
     } catch (err) {
       console.error("Failed to save settings", err);
-      setMessage("Failed to save settings. ❌");
+      const errorMsg = err.response?.data?.detail || "Failed to save settings";
+      setMessage(`${errorMsg} ❌`);
     } finally {
       setSaving(false);
     }
@@ -2527,7 +2551,13 @@ function MyPortal({ colors, styles }) {
     );
   }
 
-  if (!summary) return null;
+  // Default empty summary if API doesn't return data
+  const defaultSummary = {
+    my_applications: [],
+    my_foster_pets: [],
+    my_tasks: [],
+  };
+  const data = summary || defaultSummary;
 
   return (
     <div style={styles.content}>
@@ -2557,16 +2587,16 @@ function MyPortal({ colors, styles }) {
               ...styles.badge(),
               marginLeft: "auto",
             }}>
-              {summary.my_applications.length}
+              {data.my_applications.length}
             </span>
           </h3>
-          {summary.my_applications.length === 0 ? (
+          {data.my_applications.length === 0 ? (
             <p style={{ fontSize: "0.9rem", color: colors.textMuted }}>
               No applications yet.
             </p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-              {summary.my_applications.map((a) => (
+              {data.my_applications.map((a) => (
                 <div
                   key={a.id}
                   style={{
@@ -2597,16 +2627,16 @@ function MyPortal({ colors, styles }) {
               ...styles.badge(),
               marginLeft: "auto",
             }}>
-              {summary.my_foster_pets.length}
+              {data.my_foster_pets.length}
             </span>
           </h3>
-          {summary.my_foster_pets.length === 0 ? (
+          {data.my_foster_pets.length === 0 ? (
             <p style={{ fontSize: "0.9rem", color: colors.textMuted }}>
               No foster pets assigned.
             </p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-              {summary.my_foster_pets.map((p) => (
+              {data.my_foster_pets.map((p) => (
                 <div
                   key={p.id}
                   style={{
@@ -2656,16 +2686,16 @@ function MyPortal({ colors, styles }) {
               ...styles.badge(),
               marginLeft: "auto",
             }}>
-              {summary.my_tasks.length}
+              {data.my_tasks.length}
             </span>
           </h3>
-          {summary.my_tasks.length === 0 ? (
+          {data.my_tasks.length === 0 ? (
             <p style={{ fontSize: "0.9rem", color: colors.textMuted }}>
               No tasks assigned.
             </p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-              {summary.my_tasks.map((t) => (
+              {data.my_tasks.map((t) => (
                 <div
                   key={t.id}
                   style={{
@@ -2688,12 +2718,662 @@ function MyPortal({ colors, styles }) {
   );
 }
 
+function TasksPage({ colors, styles }) {
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterPriority, setFilterPriority] = useState("all");
+  const [users, setUsers] = useState([]);
+  const [showAddTask, setShowAddTask] = useState(false);
+  const [editingTask, setEditingTask] = useState(null);
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    status: "open",
+    priority: "normal",
+    due_date: "",
+    assigned_to_user_id: "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    loadTasks();
+    loadUsers();
+  }, []);
+
+  const loadTasks = async () => {
+    try {
+      const response = await api.get("/tasks");
+      setTasks(response.data || []);
+    } catch (err) {
+      console.error("Failed to load tasks:", err);
+      setError("Failed to load tasks");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadUsers = async () => {
+    try {
+      const response = await api.get("/auth/users");
+      setUsers(response.data || []);
+    } catch (err) {
+      console.error("Failed to load users:", err);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    setError("");
+
+    try {
+      const payload = {
+        title: formData.title,
+        description: formData.description,
+        status: formData.status,
+        priority: formData.priority,
+        due_date: formData.due_date || null,
+        assigned_to_user_id: formData.assigned_to_user_id
+          ? parseInt(formData.assigned_to_user_id)
+          : null,
+      };
+
+      if (editingTask) {
+        await api.patch(`/tasks/${editingTask.id}`, payload);
+      } else {
+        await api.post("/tasks", payload);
+      }
+
+      await loadTasks();
+      setShowAddTask(false);
+      setEditingTask(null);
+      setFormData({
+        title: "",
+        description: "",
+        status: "open",
+        priority: "normal",
+        due_date: "",
+        assigned_to_user_id: "",
+      });
+    } catch (err) {
+      console.error("Failed to save task:", err);
+      setError(err.response?.data?.detail || "Failed to save task");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleEdit = (task) => {
+    setEditingTask(task);
+    setFormData({
+      title: task.title,
+      description: task.description || "",
+      status: task.status,
+      priority: task.priority,
+      due_date: task.due_date ? task.due_date.split("T")[0] : "",
+      assigned_to_user_id: task.assigned_to_user_id || "",
+    });
+    setShowAddTask(true);
+  };
+
+  const handleMarkComplete = async (taskId) => {
+    try {
+      await api.patch(`/tasks/${taskId}`, { status: "completed" });
+      await loadTasks();
+    } catch (err) {
+      console.error("Failed to mark task complete:", err);
+    }
+  };
+
+  const filteredTasks = useMemo(() => {
+    return tasks.filter((task) => {
+      if (filterStatus !== "all" && task.status !== filterStatus) return false;
+      if (filterPriority !== "all" && task.priority !== filterPriority)
+        return false;
+      return true;
+    });
+  }, [tasks, filterStatus, filterPriority]);
+
+  const getPriorityColor = (priority) => {
+    switch (priority) {
+      case "urgent":
+        return colors.danger;
+      case "high":
+        return colors.warning;
+      case "normal":
+        return colors.accent;
+      case "low":
+        return colors.textMuted;
+      default:
+        return colors.text;
+    }
+  };
+
+  const getStatusBadge = (status) => {
+    const badges = {
+      open: { bg: "rgba(59, 130, 246, 0.1)", color: colors.accent, text: "Open" },
+      in_progress: { bg: "rgba(245, 158, 11, 0.1)", color: colors.warning, text: "In Progress" },
+      completed: { bg: "rgba(16, 185, 129, 0.1)", color: colors.success, text: "Completed" },
+      archived: { bg: "rgba(100, 116, 139, 0.1)", color: colors.textMuted, text: "Archived" },
+    };
+    const badge = badges[status] || badges.open;
+    return (
+      <span
+        style={{
+          padding: "0.25rem 0.5rem",
+          borderRadius: "0.375rem",
+          fontSize: "0.75rem",
+          fontWeight: 600,
+          background: badge.bg,
+          color: badge.color,
+        }}
+      >
+        {badge.text}
+      </span>
+    );
+  };
+
+  if (loading) {
+    return (
+      <div style={styles.content}>
+        <div style={{ textAlign: "center", padding: "3rem" }}>
+          <p style={{ color: colors.textMuted }}>Loading tasks...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={styles.content}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "2rem",
+        }}
+      >
+        <div>
+          <h1 style={{ fontSize: "2rem", fontWeight: 700, marginBottom: "0.5rem" }}>
+            ✅ Tasks
+          </h1>
+          <p style={{ color: colors.textMuted, fontSize: "0.95rem" }}>
+            Manage and track tasks for your organization
+          </p>
+        </div>
+        <button
+          onClick={() => {
+            setShowAddTask(true);
+            setEditingTask(null);
+            setFormData({
+              title: "",
+              description: "",
+              status: "open",
+              priority: "normal",
+              due_date: "",
+              assigned_to_user_id: "",
+            });
+          }}
+          style={styles.button}
+        >
+          + Add Task
+        </button>
+      </div>
+
+      {/* Filters */}
+      <div
+        style={{
+          display: "flex",
+          gap: "1rem",
+          marginBottom: "1.5rem",
+          flexWrap: "wrap",
+        }}
+      >
+        <div>
+          <label
+            style={{
+              display: "block",
+              fontSize: "0.85rem",
+              fontWeight: 600,
+              marginBottom: "0.25rem",
+            }}
+          >
+            Status
+          </label>
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            style={{
+              ...styles.input,
+              minWidth: "150px",
+            }}
+          >
+            <option value="all">All</option>
+            <option value="open">Open</option>
+            <option value="in_progress">In Progress</option>
+            <option value="completed">Completed</option>
+            <option value="archived">Archived</option>
+          </select>
+        </div>
+        <div>
+          <label
+            style={{
+              display: "block",
+              fontSize: "0.85rem",
+              fontWeight: 600,
+              marginBottom: "0.25rem",
+            }}
+          >
+            Priority
+          </label>
+          <select
+            value={filterPriority}
+            onChange={(e) => setFilterPriority(e.target.value)}
+            style={{
+              ...styles.input,
+              minWidth: "150px",
+            }}
+          >
+            <option value="all">All</option>
+            <option value="urgent">Urgent</option>
+            <option value="high">High</option>
+            <option value="normal">Normal</option>
+            <option value="low">Low</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Task List */}
+      <div style={{ display: "grid", gap: "1rem" }}>
+        {filteredTasks.length === 0 ? (
+          <div
+            style={{
+              ...styles.card,
+              padding: "3rem",
+              textAlign: "center",
+            }}
+          >
+            <p style={{ color: colors.textMuted }}>
+              No tasks found. Click "Add Task" to create one.
+            </p>
+          </div>
+        ) : (
+          filteredTasks.map((task) => {
+            const assignedUser = users.find((u) => u.id === task.assigned_to_user_id);
+            return (
+              <div
+                key={task.id}
+                style={{
+                  ...styles.card,
+                  padding: "1.25rem",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    marginBottom: "0.75rem",
+                  }}
+                >
+                  <div style={{ flex: 1 }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.75rem",
+                        marginBottom: "0.5rem",
+                      }}
+                    >
+                      <h3
+                        style={{
+                          fontSize: "1.1rem",
+                          fontWeight: 600,
+                          margin: 0,
+                        }}
+                      >
+                        {task.title}
+                      </h3>
+                      {getStatusBadge(task.status)}
+                      <span
+                        style={{
+                          fontSize: "0.75rem",
+                          fontWeight: 600,
+                          color: getPriorityColor(task.priority),
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        {task.priority}
+                      </span>
+                    </div>
+                    {task.description && (
+                      <p
+                        style={{
+                          color: colors.textMuted,
+                          fontSize: "0.9rem",
+                          marginBottom: "0.75rem",
+                        }}
+                      >
+                        {task.description}
+                      </p>
+                    )}
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "1.5rem",
+                        fontSize: "0.85rem",
+                        color: colors.textMuted,
+                      }}
+                    >
+                      {assignedUser && (
+                        <span>
+                          👤 Assigned to: <strong>{assignedUser.full_name}</strong>
+                        </span>
+                      )}
+                      {task.due_date && (
+                        <span>
+                          📅 Due:{" "}
+                          <strong>
+                            {new Date(task.due_date).toLocaleDateString()}
+                          </strong>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: "0.5rem" }}>
+                    {task.status !== "completed" && (
+                      <button
+                        onClick={() => handleMarkComplete(task.id)}
+                        style={{
+                          ...styles.button,
+                          fontSize: "0.85rem",
+                          padding: "0.5rem 0.75rem",
+                        }}
+                      >
+                        ✓ Complete
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleEdit(task)}
+                      style={{
+                        ...styles.buttonSecondary,
+                        fontSize: "0.85rem",
+                        padding: "0.5rem 0.75rem",
+                      }}
+                    >
+                      Edit
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Add/Edit Task Modal */}
+      {showAddTask && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 50,
+            background: "rgba(15, 23, 42, 0.75)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "1rem",
+          }}
+          onClick={() => setShowAddTask(false)}
+        >
+          <div
+            style={{
+              ...styles.card,
+              width: "100%",
+              maxWidth: "600px",
+              padding: "1.5rem",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "1.5rem",
+              }}
+            >
+              <h2 style={{ fontSize: "1.5rem", fontWeight: 600, margin: 0 }}>
+                {editingTask ? "Edit Task" : "Add New Task"}
+              </h2>
+              <button
+                onClick={() => setShowAddTask(false)}
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  fontSize: "1.5rem",
+                  cursor: "pointer",
+                  color: colors.text,
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            {error && (
+              <div
+                style={{
+                  marginBottom: "1rem",
+                  padding: "0.75rem 1rem",
+                  borderRadius: "0.5rem",
+                  background: "rgba(239, 68, 68, 0.1)",
+                  color: colors.danger,
+                  fontSize: "0.9rem",
+                }}
+              >
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit}>
+              <div style={{ display: "grid", gap: "1rem" }}>
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "0.9rem",
+                      fontWeight: 600,
+                      marginBottom: "0.25rem",
+                    }}
+                  >
+                    Title *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.title}
+                    onChange={(e) =>
+                      setFormData({ ...formData, title: e.target.value })
+                    }
+                    required
+                    style={styles.input}
+                    placeholder="Enter task title"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "0.9rem",
+                      fontWeight: 600,
+                      marginBottom: "0.25rem",
+                    }}
+                  >
+                    Description
+                  </label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) =>
+                      setFormData({ ...formData, description: e.target.value })
+                    }
+                    style={{
+                      ...styles.input,
+                      minHeight: "100px",
+                      resize: "vertical",
+                    }}
+                    placeholder="Enter task description"
+                  />
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+                  <div>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: "0.9rem",
+                        fontWeight: 600,
+                        marginBottom: "0.25rem",
+                      }}
+                    >
+                      Status
+                    </label>
+                    <select
+                      value={formData.status}
+                      onChange={(e) =>
+                        setFormData({ ...formData, status: e.target.value })
+                      }
+                      style={styles.input}
+                    >
+                      <option value="open">Open</option>
+                      <option value="in_progress">In Progress</option>
+                      <option value="completed">Completed</option>
+                      <option value="archived">Archived</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: "0.9rem",
+                        fontWeight: 600,
+                        marginBottom: "0.25rem",
+                      }}
+                    >
+                      Priority
+                    </label>
+                    <select
+                      value={formData.priority}
+                      onChange={(e) =>
+                        setFormData({ ...formData, priority: e.target.value })
+                      }
+                      style={styles.input}
+                    >
+                      <option value="low">Low</option>
+                      <option value="normal">Normal</option>
+                      <option value="high">High</option>
+                      <option value="urgent">Urgent</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+                  <div>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: "0.9rem",
+                        fontWeight: 600,
+                        marginBottom: "0.25rem",
+                      }}
+                    >
+                      Assign to
+                    </label>
+                    <select
+                      value={formData.assigned_to_user_id}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          assigned_to_user_id: e.target.value,
+                        })
+                      }
+                      style={styles.input}
+                    >
+                      <option value="">Unassigned</option>
+                      {users.map((user) => (
+                        <option key={user.id} value={user.id}>
+                          {user.full_name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: "0.9rem",
+                        fontWeight: 600,
+                        marginBottom: "0.25rem",
+                      }}
+                    >
+                      Due Date
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.due_date}
+                      onChange={(e) =>
+                        setFormData({ ...formData, due_date: e.target.value })
+                      }
+                      style={styles.input}
+                    />
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    gap: "0.75rem",
+                    marginTop: "1rem",
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setShowAddTask(false)}
+                    style={styles.buttonSecondary}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    style={{
+                      ...styles.button,
+                      opacity: saving ? 0.7 : 1,
+                    }}
+                  >
+                    {saving ? "Saving..." : editingTask ? "Update Task" : "Create Task"}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function VetPortal({ colors, styles }) {
   const [pets, setPets] = useState([]);
   const [selectedPet, setSelectedPet] = useState(null);
   const [medical, setMedical] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [users, setUsers] = useState([]);
 
   const [editPet, setEditPet] = useState(null);
   const [savingPet, setSavingPet] = useState(false);
@@ -2712,6 +3392,18 @@ function VetPortal({ colors, styles }) {
       }
     }
     loadPets();
+  }, []);
+
+  useEffect(() => {
+    async function fetchUsers() {
+      try {
+        const response = await api.get("/auth/users");
+        setUsers(response.data || []);
+      } catch (err) {
+        console.error("Failed to fetch users:", err);
+      }
+    }
+    fetchUsers();
   }, []);
 
   const filteredPets = useMemo(() => {
@@ -2814,10 +3506,12 @@ function VetPortal({ colors, styles }) {
   const renderCurrentLocation = () => {
     if (!selectedPet) return "";
     if (selectedPet.status === "adopted" && selectedPet.adopter_user_id) {
-      return `Adopted (user id ${selectedPet.adopter_user_id})`;
+      const adopter = users.find((u) => u.id === selectedPet.adopter_user_id);
+      return `Adopted (${adopter?.full_name || `User ID ${selectedPet.adopter_user_id}`})`;
     }
     if (selectedPet.status === "in_foster" && selectedPet.foster_user_id) {
-      return `In foster (user id ${selectedPet.foster_user_id})`;
+      const foster = users.find((u) => u.id === selectedPet.foster_user_id);
+      return `In foster (${foster?.full_name || `User ID ${selectedPet.foster_user_id}`})`;
     }
     if (selectedPet.status === "needs_foster") {
       return "Needs foster placement";
@@ -3203,7 +3897,7 @@ function VetPortal({ colors, styles }) {
                       </select>
                     </div>
 
-                    {/* Foster user id */}
+                    {/* Foster user */}
                     <div>
                       <label
                         style={{
@@ -3213,14 +3907,12 @@ function VetPortal({ colors, styles }) {
                           marginBottom: "0.25rem",
                         }}
                       >
-                        Foster user id
+                        Foster user
                       </label>
-                      <input
-                        type="number"
+                      <select
                         name="foster_user_id"
                         value={editPet.foster_user_id}
                         onChange={handleEditChange}
-                        placeholder="Numeric user id"
                         style={{
                           width: "100%",
                           padding: "0.6rem",
@@ -3229,10 +3921,17 @@ function VetPortal({ colors, styles }) {
                           background: colors.background,
                           color: colors.text,
                         }}
-                      />
+                      >
+                        <option value="">None</option>
+                        {users.map((user) => (
+                          <option key={user.id} value={user.id}>
+                            {user.full_name} ({user.email})
+                          </option>
+                        ))}
+                      </select>
                     </div>
 
-                    {/* Adopter user id */}
+                    {/* Adopter user */}
                     <div>
                       <label
                         style={{
@@ -3242,14 +3941,12 @@ function VetPortal({ colors, styles }) {
                           marginBottom: "0.25rem",
                         }}
                       >
-                        Adopter user id
+                        Adopter user
                       </label>
-                      <input
-                        type="number"
+                      <select
                         name="adopter_user_id"
                         value={editPet.adopter_user_id}
                         onChange={handleEditChange}
-                        placeholder="Numeric user id"
                         style={{
                           width: "100%",
                           padding: "0.6rem",
@@ -3258,7 +3955,14 @@ function VetPortal({ colors, styles }) {
                           background: colors.background,
                           color: colors.text,
                         }}
-                      />
+                      >
+                        <option value="">None</option>
+                        {users.map((user) => (
+                          <option key={user.id} value={user.id}>
+                            {user.full_name} ({user.email})
+                          </option>
+                        ))}
+                      </select>
                     </div>
 
                     {/* Photo URL */}
@@ -5133,6 +5837,23 @@ export default function App() {
           </button>
 
           <button
+            style={styles.navButton(view === "tasks")}
+            onClick={() => setView("tasks")}
+            onMouseEnter={(e) => {
+              if (view !== "tasks") {
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (view !== "tasks") {
+                e.currentTarget.style.background = "transparent";
+              }
+            }}
+          >
+            ✅ Tasks
+          </button>
+
+          <button
             style={styles.navButton(view === "my")}
             onClick={() => setView("my")}
             onMouseEnter={(e) => {
@@ -5233,6 +5954,7 @@ export default function App() {
       {view === "pets" && <PetsPage colors={colors} styles={styles} />}
       {view === "intake" && <AnimalIntakeForm colors={colors} styles={styles} />}
       {view === "people" && <PeoplePage colors={colors} styles={styles} />}
+      {view === "tasks" && <TasksPage colors={colors} styles={styles} />}
       {view === "settings" && <SettingsPage colors={colors} styles={styles} />}
       {view === "my" && <MyPortal colors={colors} styles={styles} />}
       {view === "vet" && <VetPortal colors={colors} styles={styles} />}
