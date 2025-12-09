@@ -577,26 +577,57 @@ def list_foster_placements(
     active_only: bool = False,
     foster_profile_id: Optional[int] = None,
     pet_id: Optional[int] = None,
+    outcome: Optional[str] = None,
+    search: Optional[str] = None,
+    start_date_from: Optional[datetime] = None,
+    start_date_to: Optional[datetime] = None,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """List foster placements"""
-    query = db.query(models.FosterPlacement).filter(
+    """List foster placements with advanced filtering"""
+    query = db.query(models.FosterPlacement).options(
+        joinedload(models.FosterPlacement.pet),
+        joinedload(models.FosterPlacement.foster_profile)
+    ).filter(
         models.FosterPlacement.org_id == current_user.org_id
     )
 
+    # Active only filter
     if active_only:
         query = query.filter(
             models.FosterPlacement.outcome == models.PlacementOutcome.active
         )
 
+    # Outcome filter
+    if outcome:
+        try:
+            outcome_enum = models.PlacementOutcome(outcome)
+            query = query.filter(models.FosterPlacement.outcome == outcome_enum)
+        except ValueError:
+            pass
+
+    # Foster profile filter
     if foster_profile_id:
         query = query.filter(
             models.FosterPlacement.foster_profile_id == foster_profile_id
         )
 
+    # Pet filter
     if pet_id:
         query = query.filter(models.FosterPlacement.pet_id == pet_id)
+
+    # Date range filters
+    if start_date_from:
+        query = query.filter(models.FosterPlacement.start_date >= start_date_from)
+
+    if start_date_to:
+        query = query.filter(models.FosterPlacement.start_date <= start_date_to)
+
+    # Search filter (search pet name)
+    if search:
+        query = query.join(models.Pet).filter(
+            models.Pet.name.ilike(f"%{search}%")
+        )
 
     return query.order_by(models.FosterPlacement.created_at.desc()).all()
 
@@ -765,3 +796,73 @@ def complete_foster_placement(
     db.commit()
     db.refresh(placement)
     return placement
+
+
+# ============================================================================
+# FOSTER PLACEMENT PROGRESS NOTES
+# ============================================================================
+
+
+@router.post("/placements/{placement_id}/notes", response_model=schemas.FosterPlacementNote)
+def add_placement_note(
+    placement_id: int,
+    note: schemas.FosterPlacementNoteCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Add a progress note to a foster placement"""
+    # Verify placement exists and user has access
+    placement = (
+        db.query(models.FosterPlacement)
+        .filter(
+            and_(
+                models.FosterPlacement.id == placement_id,
+                models.FosterPlacement.org_id == current_user.org_id,
+            )
+        )
+        .first()
+    )
+    if not placement:
+        raise HTTPException(status_code=404, detail="Foster placement not found")
+
+    # Create note
+    db_note = models.FosterPlacementNote(
+        placement_id=placement_id,
+        org_id=current_user.org_id,
+        created_by_user_id=current_user.id,
+        **note.dict(exclude={"placement_id"}),
+    )
+    db.add(db_note)
+    db.commit()
+    db.refresh(db_note)
+    return db_note
+
+
+@router.get("/placements/{placement_id}/notes", response_model=List[schemas.FosterPlacementNote])
+def get_placement_notes(
+    placement_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Get all progress notes for a foster placement"""
+    # Verify placement exists and user has access
+    placement = (
+        db.query(models.FosterPlacement)
+        .filter(
+            and_(
+                models.FosterPlacement.id == placement_id,
+                models.FosterPlacement.org_id == current_user.org_id,
+            )
+        )
+        .first()
+    )
+    if not placement:
+        raise HTTPException(status_code=404, detail="Foster placement not found")
+
+    notes = (
+        db.query(models.FosterPlacementNote)
+        .filter(models.FosterPlacementNote.placement_id == placement_id)
+        .order_by(models.FosterPlacementNote.created_at.desc())
+        .all()
+    )
+    return notes

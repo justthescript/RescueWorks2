@@ -1741,6 +1741,587 @@ function PetDetailPanel({ pet, colors, styles, onClose, onPetUpdated }) {
   );
 }
 
+// ============ Chart Components ============
+
+function LineChart({ data, colors, width = 800, height = 300, title = "" }) {
+  if (!data || data.length === 0) {
+    return <div style={{ textAlign: "center", padding: "2rem", color: colors.textMuted }}>No data available</div>;
+  }
+
+  const padding = { top: 40, right: 40, bottom: 60, left: 60 };
+  const chartWidth = width - padding.left - padding.right;
+  const chartHeight = height - padding.top - padding.bottom;
+
+  const maxValue = Math.max(...data.map(d => d.count || d.value || 0));
+  const minValue = 0;
+  const range = maxValue - minValue || 1;
+
+  const xStep = chartWidth / (data.length - 1 || 1);
+
+  const points = data.map((d, i) => {
+    const x = padding.left + (i * xStep);
+    const y = padding.top + chartHeight - ((d.count || d.value || 0) - minValue) / range * chartHeight;
+    return { x, y, ...d };
+  });
+
+  const pathData = points.map((p, i) =>
+    `${i === 0 ? 'M' : 'L'} ${p.x},${p.y}`
+  ).join(' ');
+
+  const areaData = `${pathData} L ${points[points.length - 1].x},${padding.top + chartHeight} L ${padding.left},${padding.top + chartHeight} Z`;
+
+  return (
+    <div>
+      {title && <h3 style={{ marginBottom: "1rem", fontSize: "1.1rem", fontWeight: 600 }}>{title}</h3>}
+      <svg width={width} height={height} style={{ fontFamily: "inherit" }}>
+        {/* Grid lines */}
+        {[0, 0.25, 0.5, 0.75, 1].map(factor => {
+          const y = padding.top + chartHeight * (1 - factor);
+          return (
+            <g key={factor}>
+              <line
+                x1={padding.left}
+                y1={y}
+                x2={padding.left + chartWidth}
+                y2={y}
+                stroke={colors.cardBorder}
+                strokeDasharray="2,2"
+              />
+              <text
+                x={padding.left - 10}
+                y={y + 4}
+                textAnchor="end"
+                fontSize="11"
+                fill={colors.textMuted}
+              >
+                {Math.round(minValue + range * factor)}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* Area fill */}
+        <path
+          d={areaData}
+          fill={colors.accent}
+          fillOpacity="0.1"
+        />
+
+        {/* Line */}
+        <path
+          d={pathData}
+          fill="none"
+          stroke={colors.accent}
+          strokeWidth="2.5"
+        />
+
+        {/* Data points */}
+        {points.map((p, i) => (
+          <circle
+            key={i}
+            cx={p.x}
+            cy={p.y}
+            r="4"
+            fill={colors.accent}
+          />
+        ))}
+
+        {/* X-axis labels */}
+        {points.map((p, i) => {
+          if (data.length > 15 && i % Math.ceil(data.length / 10) !== 0) return null;
+          return (
+            <text
+              key={i}
+              x={p.x}
+              y={padding.top + chartHeight + 20}
+              textAnchor="middle"
+              fontSize="10"
+              fill={colors.textMuted}
+            >
+              {p.date || p.label || p.month || i}
+            </text>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+function BarChart({ data, colors, width = 800, height = 300, title = "" }) {
+  if (!data || data.length === 0) {
+    return <div style={{ textAlign: "center", padding: "2rem", color: colors.textMuted }}>No data available</div>;
+  }
+
+  const padding = { top: 40, right: 40, bottom: 80, left: 60 };
+  const chartWidth = width - padding.left - padding.right;
+  const chartHeight = height - padding.top - padding.bottom;
+
+  const maxValue = Math.max(...data.map(d => d.count || d.value || 0));
+  const barWidth = (chartWidth / data.length) * 0.7;
+  const barGap = (chartWidth / data.length) * 0.3;
+
+  const barColors = [
+    "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6",
+    "#ec4899", "#06b6d4", "#84cc16", "#f97316", "#6366f1"
+  ];
+
+  return (
+    <div>
+      {title && <h3 style={{ marginBottom: "1rem", fontSize: "1.1rem", fontWeight: 600 }}>{title}</h3>}
+      <svg width={width} height={height} style={{ fontFamily: "inherit" }}>
+        {/* Grid lines */}
+        {[0, 0.25, 0.5, 0.75, 1].map(factor => {
+          const y = padding.top + chartHeight * (1 - factor);
+          return (
+            <g key={factor}>
+              <line
+                x1={padding.left}
+                y1={y}
+                x2={padding.left + chartWidth}
+                y2={y}
+                stroke={colors.cardBorder}
+                strokeDasharray="2,2"
+              />
+              <text
+                x={padding.left - 10}
+                y={y + 4}
+                textAnchor="end"
+                fontSize="11"
+                fill={colors.textMuted}
+              >
+                {Math.round(maxValue * factor)}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* Bars */}
+        {data.map((d, i) => {
+          const value = d.count || d.value || 0;
+          const barHeight = (value / (maxValue || 1)) * chartHeight;
+          const x = padding.left + (i * (barWidth + barGap)) + barGap / 2;
+          const y = padding.top + chartHeight - barHeight;
+
+          return (
+            <g key={i}>
+              <rect
+                x={x}
+                y={y}
+                width={barWidth}
+                height={barHeight}
+                fill={barColors[i % barColors.length]}
+                rx="4"
+              />
+              <text
+                x={x + barWidth / 2}
+                y={y - 8}
+                textAnchor="middle"
+                fontSize="11"
+                fill={colors.text}
+                fontWeight="600"
+              >
+                {value}
+              </text>
+              <text
+                x={x + barWidth / 2}
+                y={padding.top + chartHeight + 20}
+                textAnchor="end"
+                fontSize="10"
+                fill={colors.textMuted}
+                transform={`rotate(-45, ${x + barWidth / 2}, ${padding.top + chartHeight + 20})`}
+              >
+                {d.label || d.status || d.species || d.category_name || i}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+function PieChart({ data, colors, size = 300, title = "" }) {
+  if (!data || data.length === 0) {
+    return <div style={{ textAlign: "center", padding: "2rem", color: colors.textMuted }}>No data available</div>;
+  }
+
+  const total = data.reduce((sum, d) => sum + (d.count || d.value || 0), 0);
+  if (total === 0) {
+    return <div style={{ textAlign: "center", padding: "2rem", color: colors.textMuted }}>No data available</div>;
+  }
+
+  const pieColors = [
+    "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6",
+    "#ec4899", "#06b6d4", "#84cc16", "#f97316", "#6366f1"
+  ];
+
+  const centerX = size / 2;
+  const centerY = size / 2;
+  const radius = Math.min(size, size) / 2 - 40;
+
+  let currentAngle = -90;
+  const slices = data.map((d, i) => {
+    const value = d.count || d.value || 0;
+    const percentage = (value / total) * 100;
+    const sliceAngle = (value / total) * 360;
+
+    const startAngle = currentAngle;
+    const endAngle = currentAngle + sliceAngle;
+
+    const x1 = centerX + radius * Math.cos((startAngle * Math.PI) / 180);
+    const y1 = centerY + radius * Math.sin((startAngle * Math.PI) / 180);
+    const x2 = centerX + radius * Math.cos((endAngle * Math.PI) / 180);
+    const y2 = centerY + radius * Math.sin((endAngle * Math.PI) / 180);
+
+    const largeArc = sliceAngle > 180 ? 1 : 0;
+    const path = `M ${centerX},${centerY} L ${x1},${y1} A ${radius},${radius} 0 ${largeArc},1 ${x2},${y2} Z`;
+
+    currentAngle = endAngle;
+
+    return {
+      path,
+      color: pieColors[i % pieColors.length],
+      label: d.label || d.status || d.species || d.type || `Item ${i + 1}`,
+      value,
+      percentage: percentage.toFixed(1)
+    };
+  });
+
+  return (
+    <div>
+      {title && <h3 style={{ marginBottom: "1rem", fontSize: "1.1rem", fontWeight: 600 }}>{title}</h3>}
+      <div style={{ display: "flex", alignItems: "center", gap: "2rem", flexWrap: "wrap" }}>
+        <svg width={size} height={size}>
+          {slices.map((slice, i) => (
+            <path
+              key={i}
+              d={slice.path}
+              fill={slice.color}
+              stroke="white"
+              strokeWidth="2"
+            />
+          ))}
+        </svg>
+        <div style={{ flex: 1, minWidth: "200px" }}>
+          {slices.map((slice, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
+              <div style={{ width: "16px", height: "16px", borderRadius: "3px", background: slice.color }}></div>
+              <span style={{ fontSize: "0.9rem", color: colors.text }}>
+                {slice.label}: {slice.value} ({slice.percentage}%)
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============ Analytics Page ============
+
+function AnalyticsPage({ colors, styles }) {
+  const [metrics, setMetrics] = useState(null);
+  const [intakeTrends, setIntakeTrends] = useState([]);
+  const [adoptionTrends, setAdoptionTrends] = useState([]);
+  const [speciesBreakdown, setSpeciesBreakdown] = useState([]);
+  const [fosterPerformance, setFosterPerformance] = useState(null);
+  const [applicationTrends, setApplicationTrends] = useState(null);
+  const [petsByStatus, setPetsByStatus] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [timeRange, setTimeRange] = useState(30);
+
+  useEffect(() => {
+    loadAnalytics();
+  }, [timeRange]);
+
+  async function loadAnalytics() {
+    setLoading(true);
+    try {
+      const [metricsRes, intakeRes, adoptionRes, speciesRes, fosterRes, appRes, statusRes] = await Promise.all([
+        api.get("/stats/comprehensive_metrics"),
+        api.get(`/stats/intake_trends?days=${timeRange}`),
+        api.get(`/stats/adoption_trends?days=${timeRange}`),
+        api.get("/stats/species_breakdown"),
+        api.get("/stats/foster_performance"),
+        api.get(`/stats/application_trends?days=${timeRange}`),
+        api.get("/stats/pets_by_status")
+      ]);
+
+      setMetrics(metricsRes.data);
+      setIntakeTrends(intakeRes.data || []);
+      setAdoptionTrends(adoptionRes.data || []);
+      setSpeciesBreakdown(speciesRes.data.map(d => ({ ...d, label: d.species })) || []);
+      setFosterPerformance(fosterRes.data);
+      setApplicationTrends(appRes.data);
+      setPetsByStatus(statusRes.data.map(d => ({ ...d, label: d.status })) || []);
+    } catch (err) {
+      console.error("Failed to load analytics:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div style={{ ...styles.content, textAlign: "center", paddingTop: "4rem" }}>
+        <LoadingSpinner />
+        <p style={{ marginTop: "1rem", color: colors.textMuted }}>Loading analytics...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div style={styles.content}>
+      {/* Header */}
+      <div style={{ marginBottom: "2rem" }}>
+        <h1 style={{ fontSize: "2rem", fontWeight: 700, marginBottom: "0.5rem" }}>Analytics & Metrics</h1>
+        <p style={{ color: colors.textMuted, fontSize: "0.95rem" }}>
+          Comprehensive insights into your rescue organization
+        </p>
+      </div>
+
+      {/* Time Range Selector */}
+      <div style={{ marginBottom: "2rem" }}>
+        <label style={{ marginRight: "1rem", color: colors.textMuted, fontSize: "0.9rem" }}>Time Range:</label>
+        {[7, 30, 90, 180, 365].map(days => (
+          <button
+            key={days}
+            onClick={() => setTimeRange(days)}
+            style={{
+              ...styles.button,
+              marginRight: "0.5rem",
+              padding: "0.5rem 1rem",
+              background: timeRange === days ? colors.accent : colors.backgroundSecondary,
+              color: timeRange === days ? "white" : colors.text,
+              border: `1px solid ${colors.cardBorder}`
+            }}
+          >
+            {days} days
+          </button>
+        ))}
+      </div>
+
+      {/* Key Metrics Grid */}
+      {metrics && (
+        <div style={{ marginBottom: "3rem" }}>
+          <h2 style={{ fontSize: "1.5rem", fontWeight: 600, marginBottom: "1.5rem" }}>Key Metrics</h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "1rem" }}>
+            {/* Pet Metrics */}
+            <div style={{ ...styles.statCard, background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)" }}>
+              <div style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>🐾</div>
+              <div style={{ fontSize: "2rem", fontWeight: 700 }}>{metrics.pet_metrics.total_pets}</div>
+              <div style={{ fontSize: "0.9rem", opacity: 0.9 }}>Total Pets</div>
+            </div>
+            <div style={{ ...styles.statCard, background: "linear-gradient(135deg, #10b981 0%, #059669 100%)" }}>
+              <div style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>🏠</div>
+              <div style={{ fontSize: "2rem", fontWeight: 700 }}>{metrics.pet_metrics.pets_available}</div>
+              <div style={{ fontSize: "0.9rem", opacity: 0.9 }}>Available for Adoption</div>
+            </div>
+            <div style={{ ...styles.statCard, background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)" }}>
+              <div style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>❤️</div>
+              <div style={{ fontSize: "2rem", fontWeight: 700 }}>{metrics.pet_metrics.pets_adopted_this_month}</div>
+              <div style={{ fontSize: "0.9rem", opacity: 0.9 }}>Adopted This Month</div>
+            </div>
+            <div style={{ ...styles.statCard, background: "linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)" }}>
+              <div style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>👥</div>
+              <div style={{ fontSize: "2rem", fontWeight: 700 }}>{metrics.foster_metrics.active_foster_profiles}</div>
+              <div style={{ fontSize: "0.9rem", opacity: 0.9 }}>Active Foster Homes</div>
+            </div>
+
+            {/* Financial Metrics */}
+            <div style={{ ...styles.statCard, background: "linear-gradient(135deg, #ec4899 0%, #db2777 100%)" }}>
+              <div style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>💰</div>
+              <div style={{ fontSize: "2rem", fontWeight: 700 }}>${metrics.financial_metrics.total_donations.toLocaleString()}</div>
+              <div style={{ fontSize: "0.9rem", opacity: 0.9 }}>Total Donations</div>
+            </div>
+            <div style={{ ...styles.statCard, background: "linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)" }}>
+              <div style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>📊</div>
+              <div style={{ fontSize: "2rem", fontWeight: 700 }}>${metrics.financial_metrics.net_balance.toLocaleString()}</div>
+              <div style={{ fontSize: "0.9rem", opacity: 0.9 }}>Net Balance</div>
+            </div>
+
+            {/* Task & Application Metrics */}
+            <div style={{ ...styles.statCard, background: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)" }}>
+              <div style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>⚠️</div>
+              <div style={{ fontSize: "2rem", fontWeight: 700 }}>{metrics.task_metrics.urgent_tasks}</div>
+              <div style={{ fontSize: "0.9rem", opacity: 0.9 }}>Urgent Tasks</div>
+            </div>
+            <div style={{ ...styles.statCard, background: "linear-gradient(135deg, #84cc16 0%, #65a30d 100%)" }}>
+              <div style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>📝</div>
+              <div style={{ fontSize: "2rem", fontWeight: 700 }}>{metrics.application_metrics.pending_applications}</div>
+              <div style={{ fontSize: "0.9rem", opacity: 0.9 }}>Pending Applications</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Charts Section */}
+      <div style={{ display: "grid", gap: "2rem" }}>
+        {/* Intake & Adoption Trends */}
+        <div style={styles.card}>
+          <LineChart
+            data={intakeTrends}
+            colors={colors}
+            title="Pet Intake Trends"
+            width={Math.min(window.innerWidth - 200, 1000)}
+          />
+        </div>
+
+        <div style={styles.card}>
+          <LineChart
+            data={adoptionTrends}
+            colors={colors}
+            title="Adoption Trends"
+            width={Math.min(window.innerWidth - 200, 1000)}
+          />
+        </div>
+
+        {/* Species & Status Breakdown */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))", gap: "2rem" }}>
+          <div style={styles.card}>
+            <PieChart
+              data={speciesBreakdown}
+              colors={colors}
+              title="Pets by Species"
+              size={280}
+            />
+          </div>
+
+          <div style={styles.card}>
+            <BarChart
+              data={petsByStatus}
+              colors={colors}
+              title="Pets by Status"
+              width={500}
+              height={300}
+            />
+          </div>
+        </div>
+
+        {/* Foster Performance */}
+        {fosterPerformance && (
+          <div style={styles.card}>
+            <h3 style={{ fontSize: "1.3rem", fontWeight: 600, marginBottom: "1.5rem" }}>Foster Program Performance</h3>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1.5rem" }}>
+              <div>
+                <div style={{ fontSize: "2rem", fontWeight: 700, color: colors.accent }}>
+                  {fosterPerformance.avg_placement_duration_days.toFixed(0)} days
+                </div>
+                <div style={{ color: colors.textMuted, fontSize: "0.9rem" }}>Avg. Placement Duration</div>
+              </div>
+              <div>
+                <div style={{ fontSize: "2rem", fontWeight: 700, color: colors.success }}>
+                  {fosterPerformance.total_successful_adoptions}
+                </div>
+                <div style={{ color: colors.textMuted, fontSize: "0.9rem" }}>Total Successful Adoptions</div>
+              </div>
+              <div>
+                <div style={{ fontSize: "2rem", fontWeight: 700, color: colors.warning }}>
+                  {fosterPerformance.avg_foster_rating.toFixed(1)} ⭐
+                </div>
+                <div style={{ color: colors.textMuted, fontSize: "0.9rem" }}>Avg. Foster Rating</div>
+              </div>
+            </div>
+
+            {/* Placement Outcomes */}
+            {fosterPerformance.placement_outcomes && Object.keys(fosterPerformance.placement_outcomes).length > 0 && (
+              <div style={{ marginTop: "2rem" }}>
+                <h4 style={{ fontSize: "1.1rem", fontWeight: 600, marginBottom: "1rem" }}>Placement Outcomes</h4>
+                <BarChart
+                  data={Object.entries(fosterPerformance.placement_outcomes).map(([key, value]) => ({
+                    label: key,
+                    count: value
+                  }))}
+                  colors={colors}
+                  width={Math.min(window.innerWidth - 200, 800)}
+                  height={250}
+                />
+              </div>
+            )}
+
+            {/* Top Performers */}
+            {fosterPerformance.top_performers && fosterPerformance.top_performers.length > 0 && (
+              <div style={{ marginTop: "2rem" }}>
+                <h4 style={{ fontSize: "1.1rem", fontWeight: 600, marginBottom: "1rem" }}>Top Performing Fosters</h4>
+                <div style={{ display: "grid", gap: "0.75rem" }}>
+                  {fosterPerformance.top_performers.slice(0, 5).map((foster, i) => (
+                    <div key={foster.profile_id} style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "0.75rem",
+                      background: colors.background,
+                      borderRadius: "0.5rem",
+                      border: `1px solid ${colors.cardBorder}`
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                        <span style={{ fontSize: "1.2rem", fontWeight: 700, color: colors.accent }}>#{i + 1}</span>
+                        <span style={{ fontWeight: 500 }}>{foster.user_name}</span>
+                      </div>
+                      <div style={{ display: "flex", gap: "2rem", fontSize: "0.9rem" }}>
+                        <span>{foster.successful_adoptions} adoptions</span>
+                        <span>{foster.rating.toFixed(1)} ⭐</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Application Trends */}
+        {applicationTrends && (
+          <div style={styles.card}>
+            <h3 style={{ fontSize: "1.3rem", fontWeight: 600, marginBottom: "1.5rem" }}>Application Trends</h3>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(350px, 1fr))", gap: "2rem" }}>
+              {applicationTrends.by_type && Object.keys(applicationTrends.by_type).length > 0 && (
+                <div>
+                  <BarChart
+                    data={Object.entries(applicationTrends.by_type).map(([key, value]) => ({
+                      label: key,
+                      count: value
+                    }))}
+                    colors={colors}
+                    title="Applications by Type"
+                    width={400}
+                    height={250}
+                  />
+                </div>
+              )}
+              {applicationTrends.by_status && Object.keys(applicationTrends.by_status).length > 0 && (
+                <div>
+                  <BarChart
+                    data={Object.entries(applicationTrends.by_status).map(([key, value]) => ({
+                      label: key,
+                      count: value
+                    }))}
+                    colors={colors}
+                    title="Applications by Status"
+                    width={400}
+                    height={250}
+                  />
+                </div>
+              )}
+            </div>
+
+            {applicationTrends.daily_submissions && applicationTrends.daily_submissions.length > 0 && (
+              <div style={{ marginTop: "2rem" }}>
+                <LineChart
+                  data={applicationTrends.daily_submissions}
+                  colors={colors}
+                  title="Daily Application Submissions"
+                  width={Math.min(window.innerWidth - 200, 1000)}
+                />
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Dashboard({ colors, styles }) {
   const [pets, setPets] = useState([]);
   const [apps, setApps] = useState([]);
@@ -2383,7 +2964,165 @@ function PetsPage({ colors, styles }) {
   );
 }
 
+// ============ Reports Page ============
 
+function ReportsPage({ colors, styles }) {
+  const [timeRange, setTimeRange] = useState(90);
+  const [generating, setGenerating] = useState(false);
+
+  async function downloadReport(endpoint, filename) {
+    setGenerating(true);
+    try {
+      const response = await api.get(endpoint, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+    } catch (err) {
+      console.error("Failed to download report:", err);
+      alert("Failed to generate report. Please try again.");
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  const reportSections = [
+    {
+      title: "Animal Reports",
+      icon: "🐾",
+      reports: [
+        { name: "All Pets", endpoint: "/reports/pets/export", filename: "pets_report.csv" },
+        { name: "Available Pets", endpoint: "/reports/pets/export?status_filter=available", filename: "available_pets.csv" },
+        { name: "Adopted Pets", endpoint: `/reports/adoptions/export?days=${timeRange}`, filename: "adoptions_report.csv" },
+      ]
+    },
+    {
+      title: "Foster Care Reports",
+      icon: "🏠",
+      reports: [
+        { name: "Active Placements", endpoint: "/reports/foster/placements/export?active_only=true", filename: "active_placements.csv" },
+        { name: "All Placements", endpoint: `/reports/foster/placements/export?days=${timeRange}`, filename: "foster_placements.csv" },
+        { name: "Foster Performance", endpoint: "/reports/foster/performance/export", filename: "foster_performance.csv" },
+      ]
+    },
+    {
+      title: "Application Reports",
+      icon: "📝",
+      reports: [
+        { name: "All Applications", endpoint: `/reports/applications/export?days=${timeRange}`, filename: "applications_report.csv" },
+        { name: "Adoption Applications", endpoint: `/reports/applications/export?type_filter=adoption&days=${timeRange}`, filename: "adoption_apps.csv" },
+        { name: "Foster Applications", endpoint: `/reports/applications/export?type_filter=foster&days=${timeRange}`, filename: "foster_apps.csv" },
+      ]
+    },
+    {
+      title: "Financial Reports",
+      icon: "💰",
+      reports: [
+        { name: "Donations", endpoint: `/reports/financial/donations/export?days=${timeRange}`, filename: "donations_report.csv" },
+        { name: "Expenses", endpoint: `/reports/financial/expenses/export?days=${timeRange}`, filename: "expenses_report.csv" },
+      ]
+    },
+    {
+      title: "People & Contacts",
+      icon: "👥",
+      reports: [
+        { name: "All Contacts", endpoint: "/reports/people/export", filename: "people_report.csv" },
+        { name: "Adopters", endpoint: "/reports/people/export?tag_filter=adopter", filename: "adopters.csv" },
+        { name: "Fosters", endpoint: "/reports/people/export?tag_filter=foster", filename: "fosters.csv" },
+        { name: "Volunteers", endpoint: "/reports/people/export?tag_filter=volunteer", filename: "volunteers.csv" },
+        { name: "Donors", endpoint: "/reports/people/export?tag_filter=donor", filename: "donors.csv" },
+      ]
+    }
+  ];
+
+  return (
+    <div style={styles.content}>
+      {/* Header */}
+      <div style={{ marginBottom: "2rem" }}>
+        <h1 style={{ fontSize: "2rem", fontWeight: 700, marginBottom: "0.5rem" }}>Reports & Exports</h1>
+        <p style={{ color: colors.textMuted, fontSize: "0.95rem" }}>
+          Generate and download reports in CSV format
+        </p>
+      </div>
+
+      {/* Time Range Selector */}
+      <div style={{ marginBottom: "2rem", padding: "1.5rem", background: colors.backgroundSecondary, borderRadius: "0.75rem", border: `1px solid ${colors.cardBorder}` }}>
+        <label style={{ marginRight: "1rem", color: colors.text, fontSize: "1rem", fontWeight: 500 }}>Time Range for Reports:</label>
+        {[30, 90, 180, 365].map(days => (
+          <button
+            key={days}
+            onClick={() => setTimeRange(days)}
+            style={{
+              ...styles.button,
+              marginRight: "0.5rem",
+              padding: "0.5rem 1rem",
+              background: timeRange === days ? colors.accent : colors.background,
+              color: timeRange === days ? "white" : colors.text,
+              border: `1px solid ${timeRange === days ? colors.accent : colors.cardBorder}`
+            }}
+          >
+            {days} days
+          </button>
+        ))}
+      </div>
+
+      {/* Report Sections */}
+      <div style={{ display: "grid", gap: "2rem" }}>
+        {reportSections.map((section, idx) => (
+          <div key={idx} style={styles.card}>
+            <h2 style={{ fontSize: "1.3rem", fontWeight: 600, marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <span style={{ fontSize: "1.5rem" }}>{section.icon}</span>
+              {section.title}
+            </h2>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: "1rem" }}>
+              {section.reports.map((report, reportIdx) => (
+                <button
+                  key={reportIdx}
+                  onClick={() => downloadReport(report.endpoint, report.filename)}
+                  disabled={generating}
+                  style={{
+                    ...styles.button,
+                    padding: "1rem",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    background: colors.backgroundSecondary,
+                    color: colors.text,
+                    border: `1px solid ${colors.cardBorder}`,
+                    opacity: generating ? 0.7 : 1
+                  }}
+                >
+                  <span style={{ fontWeight: 500 }}>{report.name}</span>
+                  <span style={{ fontSize: "1.2rem" }}>📥</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Info Box */}
+      <div style={{
+        marginTop: "2rem",
+        padding: "1.5rem",
+        background: colors.backgroundSecondary,
+        borderRadius: "0.75rem",
+        border: `1px solid ${colors.cardBorder}`
+      }}>
+        <h3 style={{ fontSize: "1.1rem", fontWeight: 600, marginBottom: "0.75rem" }}>About Reports</h3>
+        <ul style={{ color: colors.textMuted, fontSize: "0.9rem", lineHeight: 1.6, paddingLeft: "1.5rem" }}>
+          <li>All reports are generated in CSV format for easy import into Excel or Google Sheets</li>
+          <li>Time-based reports use the selected time range above</li>
+          <li>Reports include only data from your organization</li>
+          <li>Download multiple reports to perform cross-analysis</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
 
 
 function SettingsPage({ colors, styles }) {
@@ -5854,6 +6593,40 @@ export default function App() {
           </button>
 
           <button
+            style={styles.navButton(view === "analytics")}
+            onClick={() => setView("analytics")}
+            onMouseEnter={(e) => {
+              if (view !== "analytics") {
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (view !== "analytics") {
+                e.currentTarget.style.background = "transparent";
+              }
+            }}
+          >
+            📊 Analytics
+          </button>
+
+          <button
+            style={styles.navButton(view === "reports")}
+            onClick={() => setView("reports")}
+            onMouseEnter={(e) => {
+              if (view !== "reports") {
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (view !== "reports") {
+                e.currentTarget.style.background = "transparent";
+              }
+            }}
+          >
+            📥 Reports
+          </button>
+
+          <button
             style={styles.navButton(view === "my")}
             onClick={() => setView("my")}
             onMouseEnter={(e) => {
@@ -5955,6 +6728,8 @@ export default function App() {
       {view === "intake" && <AnimalIntakeForm colors={colors} styles={styles} />}
       {view === "people" && <PeoplePage colors={colors} styles={styles} />}
       {view === "tasks" && <TasksPage colors={colors} styles={styles} />}
+      {view === "analytics" && <AnalyticsPage colors={colors} styles={styles} />}
+      {view === "reports" && <ReportsPage colors={colors} styles={styles} />}
       {view === "settings" && <SettingsPage colors={colors} styles={styles} />}
       {view === "my" && <MyPortal colors={colors} styles={styles} />}
       {view === "vet" && <VetPortal colors={colors} styles={styles} />}
