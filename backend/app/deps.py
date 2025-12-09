@@ -34,6 +34,16 @@ def get_current_user(
             raise credentials_exception
     except JWTError:
         raise credentials_exception
+
+    # Check if token is blacklisted
+    blacklisted = (
+        db.query(models.TokenBlacklist)
+        .filter(models.TokenBlacklist.token == token)
+        .first()
+    )
+    if blacklisted:
+        raise credentials_exception
+
     user = db.query(models.User).filter(models.User.email == sub).first()
     if user is None:
         raise credentials_exception

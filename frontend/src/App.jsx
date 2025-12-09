@@ -3125,10 +3125,192 @@ function ReportsPage({ colors, styles }) {
 }
 
 
+function UserManagement({ colors, styles }) {
+  const [users, setUsers] = useState([]);
+  const [roles, setRoles] = useState([]);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [userRoles, setUserRoles] = useState([]);
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    loadUsers();
+    loadRoles();
+  }, []);
+
+  async function loadUsers() {
+    try {
+      const res = await api.get("/auth/users");
+      setUsers(res.data);
+    } catch (err) {
+      console.error("Failed to load users", err);
+    }
+  }
+
+  async function loadRoles() {
+    try {
+      const res = await api.get("/auth/roles");
+      setRoles(res.data);
+    } catch (err) {
+      console.error("Failed to load roles", err);
+    }
+  }
+
+  async function loadUserRoles(userId) {
+    try {
+      const res = await api.get(`/auth/users/${userId}/roles`);
+      setUserRoles(res.data);
+    } catch (err) {
+      console.error("Failed to load user roles", err);
+    }
+  }
+
+  async function assignRole(userId, roleId) {
+    try {
+      await api.post(`/auth/users/${userId}/roles`, { role_id: roleId });
+      setMessage("Role assigned successfully! ✅");
+      setTimeout(() => setMessage(""), 3000);
+      loadUserRoles(userId);
+    } catch (err) {
+      const errorMsg = err.response?.data?.detail || "Failed to assign role";
+      setMessage(`${errorMsg} ❌`);
+    }
+  }
+
+  async function removeRole(userId, roleId) {
+    try {
+      await api.delete(`/auth/users/${userId}/roles/${roleId}`);
+      setMessage("Role removed successfully! ✅");
+      setTimeout(() => setMessage(""), 3000);
+      loadUserRoles(userId);
+    } catch (err) {
+      const errorMsg = err.response?.data?.detail || "Failed to remove role";
+      setMessage(`${errorMsg} ❌`);
+    }
+  }
+
+  function selectUser(user) {
+    setSelectedUser(user);
+    loadUserRoles(user.id);
+  }
+
+  return (
+    <div style={styles.card}>
+      <h3 style={{ fontSize: "1.25rem", fontWeight: 600, marginBottom: "1rem" }}>
+        User Role Management
+      </h3>
+      {message && (
+        <div style={{
+          marginBottom: "1rem",
+          padding: "0.75rem 1rem",
+          borderRadius: "0.5rem",
+          background: message.includes("✅") ? colors.success : colors.danger,
+          color: "white",
+          fontSize: "0.9rem",
+        }}>
+          {message}
+        </div>
+      )}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem" }}>
+        <div>
+          <h4 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.75rem" }}>Users</h4>
+          <div style={{ maxHeight: "400px", overflowY: "auto" }}>
+            {users.map(user => (
+              <div
+                key={user.id}
+                onClick={() => selectUser(user)}
+                style={{
+                  padding: "0.75rem",
+                  marginBottom: "0.5rem",
+                  borderRadius: "0.5rem",
+                  background: selectedUser?.id === user.id ? colors.primary : colors.bgSecondary,
+                  color: selectedUser?.id === user.id ? "white" : colors.text,
+                  cursor: "pointer",
+                }}
+              >
+                <div style={{ fontWeight: 600 }}>{user.full_name}</div>
+                <div style={{ fontSize: "0.85rem", opacity: 0.8 }}>{user.email}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div>
+          <h4 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.75rem" }}>
+            {selectedUser ? `Roles for ${selectedUser.full_name}` : "Select a user"}
+          </h4>
+          {selectedUser && (
+            <>
+              <div style={{ marginBottom: "1rem" }}>
+                <label style={{ fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.5rem", display: "block" }}>
+                  Assigned Roles
+                </label>
+                {userRoles.length === 0 ? (
+                  <p style={{ fontSize: "0.875rem", color: colors.textMuted }}>No roles assigned</p>
+                ) : (
+                  <div>
+                    {userRoles.map(role => (
+                      <div
+                        key={role.id}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          padding: "0.5rem",
+                          marginBottom: "0.5rem",
+                          borderRadius: "0.5rem",
+                          background: colors.bgSecondary,
+                        }}
+                      >
+                        <span>{role.name}</span>
+                        <button
+                          onClick={() => removeRole(selectedUser.id, role.id)}
+                          style={{
+                            ...styles.button("danger"),
+                            padding: "0.25rem 0.5rem",
+                            fontSize: "0.75rem",
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div>
+                <label style={{ fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.5rem", display: "block" }}>
+                  Assign New Role
+                </label>
+                <select
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      assignRole(selectedUser.id, parseInt(e.target.value));
+                      e.target.value = "";
+                    }
+                  }}
+                  style={{
+                    ...styles.input,
+                    width: "100%",
+                  }}
+                >
+                  <option value="">Select a role to assign...</option>
+                  {roles.filter(r => !userRoles.find(ur => ur.id === r.id)).map(role => (
+                    <option key={role.id} value={role.id}>{role.name}</option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SettingsPage({ colors, styles }) {
   const [org, setOrg] = useState({ name: "", logo_url: "", primary_contact_email: "" });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [activeTab, setActiveTab] = useState("organization");
 
   useEffect(() => {
     async function load() {
@@ -3168,8 +3350,43 @@ function SettingsPage({ colors, styles }) {
         Manage your organization profile and preferences
       </p>
 
-      <div style={{ maxWidth: "600px" }}>
-        <div style={styles.card}>
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: "1rem", marginBottom: "2rem", borderBottom: `2px solid ${colors.border}` }}>
+        <button
+          onClick={() => setActiveTab("organization")}
+          style={{
+            padding: "0.75rem 1.5rem",
+            border: "none",
+            background: "transparent",
+            color: activeTab === "organization" ? colors.primary : colors.textMuted,
+            fontWeight: activeTab === "organization" ? 600 : 400,
+            borderBottom: activeTab === "organization" ? `2px solid ${colors.primary}` : "none",
+            marginBottom: "-2px",
+            cursor: "pointer",
+          }}
+        >
+          Organization
+        </button>
+        <button
+          onClick={() => setActiveTab("users")}
+          style={{
+            padding: "0.75rem 1.5rem",
+            border: "none",
+            background: "transparent",
+            color: activeTab === "users" ? colors.primary : colors.textMuted,
+            fontWeight: activeTab === "users" ? 600 : 400,
+            borderBottom: activeTab === "users" ? `2px solid ${colors.primary}` : "none",
+            marginBottom: "-2px",
+            cursor: "pointer",
+          }}
+        >
+          User Management
+        </button>
+      </div>
+
+      {activeTab === "organization" && (
+        <div style={{ maxWidth: "600px" }}>
+          <div style={styles.card}>
           {message && (
             <div style={{
               marginBottom: "1.5rem",
@@ -3250,7 +3467,14 @@ function SettingsPage({ colors, styles }) {
             </button>
           </form>
         </div>
-      </div>
+        </div>
+      )}
+
+      {activeTab === "users" && (
+        <div style={{ maxWidth: "1200px" }}>
+          <UserManagement colors={colors} styles={styles} />
+        </div>
+      )}
     </div>
   );
 }
