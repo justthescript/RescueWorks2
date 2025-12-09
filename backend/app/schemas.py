@@ -207,7 +207,7 @@ class PetBase(BaseModel):
 
 
 class PetCreate(PetBase):
-    org_id: int
+    org_id: Optional[int] = None  # Will be auto-populated from authenticated user if not provided
 
 
 class PetUpdate(BaseModel):

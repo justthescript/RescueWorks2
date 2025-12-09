@@ -442,7 +442,7 @@ function AnimalIntakeForm({ colors, styles }) {
     try {
       await api.post("/pets/", {
         ...formData,
-        org_id: 1, // TODO pull from auth
+        // org_id is auto-populated from authenticated user on backend
         breed: combinedBreed,
       });
 
@@ -3482,6 +3482,10 @@ function SettingsPage({ colors, styles }) {
 function MyPortal({ colors, styles }) {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [expandedPet, setExpandedPet] = useState(null);
+  const [petPlacements, setPetPlacements] = useState({});
+  const [noteForm, setNoteForm] = useState({ content: "", note_type: "progress", is_important: false });
+  const [submittingNote, setSubmittingNote] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -3496,6 +3500,63 @@ function MyPortal({ colors, styles }) {
     }
     load();
   }, []);
+
+  const loadPlacementDetails = async (petId) => {
+    try {
+      const res = await api.get(`/foster-coordinator/placements`, { params: { pet_id: petId, active_only: true } });
+      if (res.data && res.data.length > 0) {
+        const placement = res.data[0];
+        const notesRes = await api.get(`/foster-coordinator/placements/${placement.id}/notes`);
+        setPetPlacements(prev => ({
+          ...prev,
+          [petId]: { ...placement, notes: notesRes.data || [] }
+        }));
+      }
+    } catch (err) {
+      console.error("Failed to load placement details", err);
+    }
+  };
+
+  const handleAddNote = async (petId) => {
+    if (!noteForm.content.trim()) {
+      alert("Please enter a note");
+      return;
+    }
+
+    const placement = petPlacements[petId];
+    if (!placement) {
+      alert("Placement not found");
+      return;
+    }
+
+    setSubmittingNote(true);
+    try {
+      await api.post(`/foster-coordinator/placements/${placement.id}/notes`, {
+        content: noteForm.content,
+        note_type: noteForm.note_type,
+        is_important: noteForm.is_important
+      });
+      setNoteForm({ content: "", note_type: "progress", is_important: false });
+      await loadPlacementDetails(petId);
+      alert("Note added successfully!");
+    } catch (err) {
+      console.error("Failed to add note", err);
+      alert("Failed to add note");
+    } finally {
+      setSubmittingNote(false);
+    }
+  };
+
+  const togglePetExpanded = async (petId) => {
+    if (expandedPet === petId) {
+      setExpandedPet(null);
+    } else {
+      setExpandedPet(petId);
+      if (!petPlacements[petId]) {
+        await loadPlacementDetails(petId);
+      }
+    }
+  };
 
   if (loading) {
     return (
@@ -3600,35 +3661,119 @@ function MyPortal({ colors, styles }) {
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
               {data.my_foster_pets.map((p) => (
-                <div
-                  key={p.id}
-                  style={{
-                    padding: "0.75rem",
-                    borderRadius: "0.5rem",
-                    background: colors.background,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.75rem",
-                  }}
-                >
-                  <div style={{
-                    width: "50px",
-                    height: "50px",
-                    borderRadius: "0.5rem",
-                    background: colors.accentGradient,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: "1.5rem",
-                  }}>
-                    🐾
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 500 }}>{p.name}</div>
-                    <div style={{ fontSize: "0.85rem", color: colors.textMuted }}>
-                      {p.species}
+                <div key={p.id} style={{ borderRadius: "0.5rem", background: colors.background, overflow: "hidden" }}>
+                  <div
+                    onClick={() => togglePetExpanded(p.id)}
+                    style={{
+                      padding: "0.75rem",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.75rem",
+                      cursor: "pointer",
+                      transition: "background 0.2s",
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)"}
+                    onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                  >
+                    <div style={{
+                      width: "50px",
+                      height: "50px",
+                      borderRadius: "0.5rem",
+                      background: colors.accentGradient,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "1.5rem",
+                    }}>
+                      🐾
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 500 }}>{p.name}</div>
+                      <div style={{ fontSize: "0.85rem", color: colors.textMuted }}>
+                        {p.species}
+                      </div>
+                    </div>
+                    <div style={{ fontSize: "1.2rem", color: colors.textMuted }}>
+                      {expandedPet === p.id ? "▼" : "▶"}
                     </div>
                   </div>
+
+                  {expandedPet === p.id && (
+                    <div style={{ padding: "0 0.75rem 0.75rem 0.75rem", borderTop: `1px solid ${colors.border}` }}>
+                      {/* Existing Notes */}
+                      <div style={{ marginTop: "0.75rem", marginBottom: "1rem" }}>
+                        <h4 style={{ fontSize: "0.95rem", fontWeight: 600, marginBottom: "0.5rem" }}>📝 Progress Notes</h4>
+                        {!petPlacements[p.id] ? (
+                          <p style={{ fontSize: "0.85rem", color: colors.textMuted }}>Loading...</p>
+                        ) : petPlacements[p.id].notes && petPlacements[p.id].notes.length > 0 ? (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", maxHeight: "200px", overflowY: "auto" }}>
+                            {petPlacements[p.id].notes.map((note, idx) => (
+                              <div key={idx} style={{
+                                padding: "0.5rem",
+                                background: "rgba(255, 255, 255, 0.03)",
+                                borderRadius: "0.25rem",
+                                borderLeft: note.is_important ? `3px solid ${colors.accent}` : "none"
+                              }}>
+                                <div style={{ fontSize: "0.85rem", marginBottom: "0.25rem" }}>
+                                  <span style={{ fontWeight: 500, color: colors.accent }}>{note.note_type}</span>
+                                  {note.is_important && <span style={{ marginLeft: "0.5rem", color: colors.accent }}>⚠️ Important</span>}
+                                </div>
+                                <div style={{ fontSize: "0.85rem" }}>{note.content}</div>
+                                <div style={{ fontSize: "0.75rem", color: colors.textMuted, marginTop: "0.25rem" }}>
+                                  {new Date(note.created_at).toLocaleString()}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p style={{ fontSize: "0.85rem", color: colors.textMuted }}>No notes yet</p>
+                        )}
+                      </div>
+
+                      {/* Add Note Form */}
+                      <div style={{ marginTop: "1rem", padding: "0.75rem", background: "rgba(255, 255, 255, 0.03)", borderRadius: "0.5rem" }}>
+                        <h4 style={{ fontSize: "0.95rem", fontWeight: 600, marginBottom: "0.75rem" }}>✍️ Add Progress Update</h4>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                          <select
+                            value={noteForm.note_type}
+                            onChange={(e) => setNoteForm({ ...noteForm, note_type: e.target.value })}
+                            style={styles.input}
+                          >
+                            <option value="progress">Progress Update</option>
+                            <option value="health">Health Update</option>
+                            <option value="behavior">Behavior Update</option>
+                            <option value="other">Other</option>
+                          </select>
+                          <textarea
+                            value={noteForm.content}
+                            onChange={(e) => setNoteForm({ ...noteForm, content: e.target.value })}
+                            placeholder="Enter your update here..."
+                            rows={3}
+                            style={{...styles.input, resize: "vertical"}}
+                          />
+                          <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.85rem" }}>
+                            <input
+                              type="checkbox"
+                              checked={noteForm.is_important}
+                              onChange={(e) => setNoteForm({ ...noteForm, is_important: e.target.checked })}
+                            />
+                            Mark as important
+                          </label>
+                          <button
+                            onClick={() => handleAddNote(p.id)}
+                            disabled={submittingNote || !noteForm.content.trim()}
+                            style={{
+                              ...styles.button,
+                              opacity: submittingNote || !noteForm.content.trim() ? 0.5 : 1,
+                              cursor: submittingNote || !noteForm.content.trim() ? "not-allowed" : "pointer"
+                            }}
+                          >
+                            {submittingNote ? "Submitting..." : "Submit Update"}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -5408,10 +5553,8 @@ function FosterProfileManagement({ colors, styles }) {
         await api.patch("/foster-coordinator/profiles/me", formData);
       } else {
         // Create new profile
-        await api.post("/foster-coordinator/profiles", {
-          ...formData,
-          org_id: 1, // TODO: Get from user context
-        });
+        // org_id and user_id are auto-populated from authenticated user on backend
+        await api.post("/foster-coordinator/profiles", formData);
       }
       await loadProfiles();
       setEditingProfile(null);

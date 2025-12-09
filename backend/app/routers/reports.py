@@ -53,7 +53,7 @@ def export_pets_report(
 
     headers = [
         "ID", "Name", "Species", "Breed", "Sex", "Status",
-        "Intake Date", "Age (approx)", "Microchip", "Altered",
+        "Intake Date", "Date of Birth", "Microchip", "Altered",
         "Description"
     ]
 
@@ -67,7 +67,7 @@ def export_pets_report(
             pet.sex or "",
             pet.status.value if hasattr(pet.status, "value") else str(pet.status),
             pet.intake_date.strftime("%Y-%m-%d") if pet.intake_date else "",
-            pet.age_years or "",
+            pet.date_of_birth.strftime("%Y-%m-%d") if pet.date_of_birth else "",
             pet.microchip_number or "",
             pet.altered_status or "",
             pet.description_public or ""
@@ -273,7 +273,7 @@ def export_donations_report(
     ).all()
 
     headers = [
-        "Payment ID", "Amount", "Date", "Person ID", "Notes"
+        "Payment ID", "Amount", "Date", "User ID", "Purpose", "Status"
     ]
 
     rows = []
@@ -282,8 +282,9 @@ def export_donations_report(
             payment.id,
             f"${payment.amount:.2f}" if payment.amount else "$0.00",
             payment.created_at.strftime("%Y-%m-%d") if payment.created_at else "",
-            payment.person_id or "",
-            payment.notes or ""
+            payment.user_id or "",
+            payment.purpose.value if hasattr(payment.purpose, "value") else str(payment.purpose),
+            payment.status.value if hasattr(payment.status, "value") else str(payment.status)
         ])
 
     return generate_csv(headers, rows)
@@ -300,7 +301,7 @@ def export_expenses_report(
 
     expenses = db.query(models.Expense).filter(
         models.Expense.org_id == current_user.org_id,
-        models.Expense.date >= cutoff_date
+        models.Expense.date_incurred >= cutoff_date
     ).all()
 
     headers = [
@@ -320,7 +321,7 @@ def export_expenses_report(
             expense.id,
             category,
             f"${expense.amount:.2f}" if expense.amount else "$0.00",
-            expense.date.strftime("%Y-%m-%d") if expense.date else "",
+            expense.date_incurred.strftime("%Y-%m-%d") if expense.date_incurred else "",
             expense.description or ""
         ])
 
@@ -373,7 +374,7 @@ def export_people_report(
             person.last_name or "",
             person.email or "",
             person.phone or "",
-            person.address_line1 or "",
+            person.street_1 or "",
             person.city or "",
             person.state or "",
             person.zip_code or "",

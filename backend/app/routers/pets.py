@@ -46,7 +46,10 @@ def create_pet(
     user=Depends(get_current_user),
 ):
     """Create a new pet in the current user's organization."""
-    if pet_in.org_id != user.org_id:
+    # Auto-populate org_id from authenticated user if not provided
+    if pet_in.org_id is None:
+        pet_in.org_id = user.org_id
+    elif pet_in.org_id != user.org_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User org mismatch",
