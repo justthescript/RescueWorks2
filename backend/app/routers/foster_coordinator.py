@@ -252,8 +252,7 @@ def get_coordinator_stats(
 
     # Calculate average placement duration
     avg_duration_result = (
-        db.query(func.avg(models.FosterPlacement.avg_foster_duration_days))
-        .join(models.FosterProfile)
+        db.query(func.avg(models.FosterProfile.avg_foster_duration_days))
         .filter(models.FosterProfile.org_id == org_id)
         .scalar()
     )
