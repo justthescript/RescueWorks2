@@ -164,7 +164,7 @@ const LoadingSpinner = () => (
 );
 
 const SearchBar = ({ value, onChange, placeholder, colors }) => (
-  <div style={{ position: "relative", maxWidth: "400px" }}>
+  <div style={{ position: "relative", width: "100%", maxWidth: "300px", minWidth: "200px" }}>
     <span style={{
       position: "absolute",
       left: "0.875rem",
@@ -1959,7 +1959,7 @@ function Dashboard({ colors, styles }) {
             🐾 Pets ({filteredPets.length})
           </h2>
           <div
-            style={{ display: "flex", gap: "1rem", alignItems: "center" }}
+            style={{ display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap" }}
           >
             <SearchBar
               value={searchTerm}

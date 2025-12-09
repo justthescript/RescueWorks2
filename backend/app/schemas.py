@@ -353,7 +353,6 @@ class TaskBase(BaseModel):
 
 
 class TaskCreate(TaskBase):
-    org_id: int
     assigned_to_user_id: Optional[int] = None
 
 
