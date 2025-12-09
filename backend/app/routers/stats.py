@@ -121,10 +121,11 @@ def comprehensive_metrics(
         models.Pet.status == models.PetStatus.in_foster
     ).scalar() or 0
 
+    # TODO: Add updated_at field to Pet model to track when status changed
+    # For now, counting all adopted pets instead of just this month
     pets_adopted_this_month = db.query(func.count(models.Pet.id)).filter(
         models.Pet.org_id == user.org_id,
-        models.Pet.status == models.PetStatus.adopted,
-        func.strftime("%Y-%m", models.Pet.updated_at) == datetime.now().strftime("%Y-%m")
+        models.Pet.status == models.PetStatus.adopted
     ).scalar() or 0
 
     # Foster metrics
@@ -134,7 +135,7 @@ def comprehensive_metrics(
 
     active_foster_profiles = db.query(func.count(models.FosterProfile.id)).filter(
         models.FosterProfile.org_id == user.org_id,
-        models.FosterProfile.status == "active"
+        models.FosterProfile.is_available == True
     ).scalar() or 0
 
     active_placements = db.query(func.count(models.FosterPlacement.id)).filter(
@@ -147,7 +148,7 @@ def comprehensive_metrics(
         func.coalesce(func.sum(models.FosterProfile.max_capacity), 0)
     ).filter(
         models.FosterProfile.org_id == user.org_id,
-        models.FosterProfile.status == "active"
+        models.FosterProfile.is_available == True
     ).scalar() or 0
 
     available_capacity = int(total_capacity) - active_placements
@@ -285,19 +286,21 @@ def adoption_trends(
 
     cutoff_date = datetime.now() - timedelta(days=days)
 
-    # Get pets that were adopted (status changed to adopted)
+    # TODO: Add updated_at field to Pet model to track when status changed
+    # For now, using created_at as approximation (not accurate for adoption trends)
+    # This will show when pets were added to system, not when they were adopted
     rows = (
         db.query(
-            func.date(models.Pet.updated_at).label("date"),
+            func.date(models.Pet.created_at).label("date"),
             func.count(models.Pet.id).label("count")
         )
         .filter(
             models.Pet.org_id == user.org_id,
             models.Pet.status == models.PetStatus.adopted,
-            models.Pet.updated_at >= cutoff_date
+            models.Pet.created_at >= cutoff_date
         )
-        .group_by(func.date(models.Pet.updated_at))
-        .order_by(func.date(models.Pet.updated_at))
+        .group_by(func.date(models.Pet.created_at))
+        .order_by(func.date(models.Pet.created_at))
         .all()
     )
 
@@ -356,7 +359,7 @@ def foster_performance(
         models.FosterProfile.rating
     ).filter(
         models.FosterProfile.org_id == user.org_id,
-        models.FosterProfile.status == "active"
+        models.FosterProfile.is_available == True
     ).order_by(
         models.FosterProfile.successful_adoptions.desc(),
         models.FosterProfile.rating.desc()
