@@ -2322,6 +2322,488 @@ function AnalyticsPage({ colors, styles }) {
   );
 }
 
+function OperationsDashboard({ colors, styles }) {
+  const [medicalOps, setMedicalOps] = useState(null);
+  const [eventParticipation, setEventParticipation] = useState(null);
+  const [commMetrics, setCommMetrics] = useState(null);
+  const [docMetrics, setDocMetrics] = useState(null);
+  const [financialOps, setFinancialOps] = useState(null);
+  const [efficiency, setEfficiency] = useState(null);
+  const [userActivity, setUserActivity] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [timeRange, setTimeRange] = useState(30);
+  const [filterCategory, setFilterCategory] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    loadOperationsData();
+  }, [timeRange]);
+
+  async function loadOperationsData() {
+    setLoading(true);
+    try {
+      const [medicalRes, eventRes, commRes, docRes, financialRes, efficiencyRes, userRes] = await Promise.all([
+        api.get(`/stats/medical_operations?days=${timeRange}`),
+        api.get(`/stats/event_participation?days=${timeRange}`),
+        api.get(`/stats/communication_metrics?days=${timeRange}`),
+        api.get(`/stats/document_metrics?days=${timeRange}`),
+        api.get(`/stats/financial_operations?days=${timeRange}`),
+        api.get('/stats/operational_efficiency'),
+        api.get(`/stats/user_activity?days=${timeRange}`)
+      ]);
+
+      setMedicalOps(medicalRes.data);
+      setEventParticipation(eventRes.data);
+      setCommMetrics(commRes.data);
+      setDocMetrics(docRes.data);
+      setFinancialOps(financialRes.data);
+      setEfficiency(efficiencyRes.data);
+      setUserActivity(userRes.data);
+    } catch (err) {
+      console.error("Failed to load operations data:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div style={{ ...styles.content, textAlign: "center", paddingTop: "4rem" }}>
+        <LoadingSpinner />
+        <p style={{ marginTop: "1rem", color: colors.textMuted }}>Loading operations dashboard...</p>
+      </div>
+    );
+  }
+
+  // Filter categories for dashboard sections
+  const categories = [
+    { id: 'all', label: 'All Metrics', icon: '📊' },
+    { id: 'medical', label: 'Medical Operations', icon: '🏥' },
+    { id: 'events', label: 'Event Participation', icon: '📅' },
+    { id: 'communication', label: 'Communication', icon: '💬' },
+    { id: 'documents', label: 'Documents', icon: '📄' },
+    { id: 'financial', label: 'Financial Operations', icon: '💳' },
+    { id: 'efficiency', label: 'Operational Efficiency', icon: '⚡' },
+    { id: 'users', label: 'User Activity', icon: '👥' }
+  ];
+
+  const showSection = (category) => filterCategory === 'all' || filterCategory === category;
+
+  return (
+    <div style={styles.content}>
+      {/* Header */}
+      <div style={{ marginBottom: "2rem" }}>
+        <h1 style={{ fontSize: "2rem", fontWeight: 700, marginBottom: "0.5rem" }}>Operations Dashboard</h1>
+        <p style={{ color: colors.textMuted, fontSize: "0.95rem" }}>
+          Comprehensive operational metrics and insights
+        </p>
+      </div>
+
+      {/* Time Range Selector */}
+      <div style={{ marginBottom: "2rem", display: "flex", gap: "2rem", alignItems: "center", flexWrap: "wrap" }}>
+        <div>
+          <label style={{ marginRight: "1rem", color: colors.textMuted, fontSize: "0.9rem" }}>Time Range:</label>
+          {[7, 30, 90, 180, 365].map(days => (
+            <button
+              key={days}
+              onClick={() => setTimeRange(days)}
+              style={{
+                ...styles.button(),
+                marginRight: "0.5rem",
+                padding: "0.5rem 1rem",
+                background: timeRange === days ? colors.accent : colors.backgroundSecondary,
+                color: timeRange === days ? "white" : colors.text,
+                border: `1px solid ${colors.cardBorder}`
+              }}
+            >
+              {days} days
+            </button>
+          ))}
+        </div>
+
+        {/* Category Filter */}
+        <div style={{ flex: 1, minWidth: "300px" }}>
+          <label style={{ marginRight: "1rem", color: colors.textMuted, fontSize: "0.9rem" }}>Filter:</label>
+          <select
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            style={{
+              ...styles.input,
+              width: "auto",
+              minWidth: "200px",
+              padding: "0.5rem 1rem"
+            }}
+          >
+            {categories.map(cat => (
+              <option key={cat.id} value={cat.id}>{cat.icon} {cat.label}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Search */}
+        <div style={{ flex: 1, minWidth: "250px" }}>
+          <input
+            type="text"
+            placeholder="Search metrics..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={styles.input}
+          />
+        </div>
+      </div>
+
+      {/* Medical Operations */}
+      {showSection('medical') && medicalOps && (
+        <div style={{ ...styles.card, marginBottom: "2rem" }}>
+          <h2 style={{ fontSize: "1.5rem", fontWeight: 600, marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <span>🏥</span> Medical Operations
+          </h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1.5rem" }}>
+            <div>
+              <div style={{ fontSize: "2.5rem", fontWeight: 700, color: colors.accent }}>
+                {medicalOps.total_medical_records}
+              </div>
+              <div style={{ color: colors.textMuted, fontSize: "0.9rem" }}>Total Medical Records</div>
+            </div>
+            <div>
+              <div style={{ fontSize: "2.5rem", fontWeight: 700, color: colors.success }}>
+                {medicalOps.upcoming_appointments}
+              </div>
+              <div style={{ color: colors.textMuted, fontSize: "0.9rem" }}>Upcoming Appointments</div>
+            </div>
+            <div>
+              <div style={{ fontSize: "2.5rem", fontWeight: 700, color: colors.danger }}>
+                {medicalOps.pets_on_medical_hold}
+              </div>
+              <div style={{ color: colors.textMuted, fontSize: "0.9rem" }}>Pets on Medical Hold</div>
+            </div>
+          </div>
+
+          {/* Medical Records by Type */}
+          {medicalOps.records_by_type && Object.keys(medicalOps.records_by_type).length > 0 && (
+            <div style={{ marginTop: "2rem" }}>
+              <h3 style={{ fontSize: "1.1rem", fontWeight: 600, marginBottom: "1rem" }}>Records by Type</h3>
+              <BarChart
+                data={Object.entries(medicalOps.records_by_type).map(([key, value]) => ({
+                  label: key,
+                  count: value
+                }))}
+                colors={colors}
+                width={Math.min(window.innerWidth - 200, 800)}
+                height={250}
+              />
+            </div>
+          )}
+
+          {/* Appointments by Type */}
+          {medicalOps.appointments_by_type && Object.keys(medicalOps.appointments_by_type).length > 0 && (
+            <div style={{ marginTop: "2rem" }}>
+              <h3 style={{ fontSize: "1.1rem", fontWeight: 600, marginBottom: "1rem" }}>Appointments by Type</h3>
+              <BarChart
+                data={Object.entries(medicalOps.appointments_by_type).map(([key, value]) => ({
+                  label: key,
+                  count: value
+                }))}
+                colors={colors}
+                width={Math.min(window.innerWidth - 200, 800)}
+                height={250}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Event Participation */}
+      {showSection('events') && eventParticipation && (
+        <div style={{ ...styles.card, marginBottom: "2rem" }}>
+          <h2 style={{ fontSize: "1.5rem", fontWeight: 600, marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <span>📅</span> Event Participation & Volunteer Engagement
+          </h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1.5rem" }}>
+            <div>
+              <div style={{ fontSize: "2.5rem", fontWeight: 700, color: colors.accent }}>
+                {eventParticipation.total_events}
+              </div>
+              <div style={{ color: colors.textMuted, fontSize: "0.9rem" }}>Total Events</div>
+            </div>
+            <div>
+              <div style={{ fontSize: "2.5rem", fontWeight: 700, color: colors.success }}>
+                {eventParticipation.upcoming_events}
+              </div>
+              <div style={{ color: colors.textMuted, fontSize: "0.9rem" }}>Upcoming Events</div>
+            </div>
+            <div>
+              <div style={{ fontSize: "2.5rem", fontWeight: 700, color: colors.warning }}>
+                {eventParticipation.total_signups}
+              </div>
+              <div style={{ color: colors.textMuted, fontSize: "0.9rem" }}>Total Signups</div>
+            </div>
+            <div>
+              <div style={{ fontSize: "2.5rem", fontWeight: 700, color: colors.accent }}>
+                {eventParticipation.avg_signups_per_event}
+              </div>
+              <div style={{ color: colors.textMuted, fontSize: "0.9rem" }}>Avg. Signups per Event</div>
+            </div>
+            <div>
+              <div style={{ fontSize: "2.5rem", fontWeight: 700, color: colors.success }}>
+                {eventParticipation.capacity_utilization_percent}%
+              </div>
+              <div style={{ color: colors.textMuted, fontSize: "0.9rem" }}>Capacity Utilization</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Communication Metrics */}
+      {showSection('communication') && commMetrics && (
+        <div style={{ ...styles.card, marginBottom: "2rem" }}>
+          <h2 style={{ fontSize: "1.5rem", fontWeight: 600, marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <span>💬</span> Communication Metrics
+          </h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1.5rem" }}>
+            <div>
+              <div style={{ fontSize: "2.5rem", fontWeight: 700, color: colors.accent }}>
+                {commMetrics.total_threads}
+              </div>
+              <div style={{ color: colors.textMuted, fontSize: "0.9rem" }}>Total Threads</div>
+            </div>
+            <div>
+              <div style={{ fontSize: "2.5rem", fontWeight: 700, color: colors.success }}>
+                {commMetrics.total_messages}
+              </div>
+              <div style={{ color: colors.textMuted, fontSize: "0.9rem" }}>Total Messages</div>
+            </div>
+            <div>
+              <div style={{ fontSize: "2.5rem", fontWeight: 700, color: colors.warning }}>
+                {commMetrics.avg_messages_per_thread}
+              </div>
+              <div style={{ color: colors.textMuted, fontSize: "0.9rem" }}>Avg. Messages per Thread</div>
+            </div>
+            <div>
+              <div style={{ fontSize: "2.5rem", fontWeight: 700, color: colors.accent }}>
+                {commMetrics.external_threads}
+              </div>
+              <div style={{ color: colors.textMuted, fontSize: "0.9rem" }}>External Threads</div>
+            </div>
+            <div>
+              <div style={{ fontSize: "2.5rem", fontWeight: 700, color: colors.success }}>
+                {commMetrics.internal_threads}
+              </div>
+              <div style={{ color: colors.textMuted, fontSize: "0.9rem" }}>Internal Threads</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Document Metrics */}
+      {showSection('documents') && docMetrics && (
+        <div style={{ ...styles.card, marginBottom: "2rem" }}>
+          <h2 style={{ fontSize: "1.5rem", fontWeight: 600, marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <span>📄</span> Document Management
+          </h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1.5rem", marginBottom: "2rem" }}>
+            <div>
+              <div style={{ fontSize: "2.5rem", fontWeight: 700, color: colors.accent }}>
+                {docMetrics.total_documents}
+              </div>
+              <div style={{ color: colors.textMuted, fontSize: "0.9rem" }}>Total Documents</div>
+            </div>
+            <div>
+              <div style={{ fontSize: "2.5rem", fontWeight: 700, color: colors.success }}>
+                {docMetrics.by_entity?.pet_documents || 0}
+              </div>
+              <div style={{ color: colors.textMuted, fontSize: "0.9rem" }}>Pet Documents</div>
+            </div>
+            <div>
+              <div style={{ fontSize: "2.5rem", fontWeight: 700, color: colors.warning }}>
+                {docMetrics.by_entity?.application_documents || 0}
+              </div>
+              <div style={{ color: colors.textMuted, fontSize: "0.9rem" }}>Application Documents</div>
+            </div>
+            <div>
+              <div style={{ fontSize: "2.5rem", fontWeight: 700, color: colors.accent }}>
+                {docMetrics.by_entity?.person_documents || 0}
+              </div>
+              <div style={{ color: colors.textMuted, fontSize: "0.9rem" }}>Person Documents</div>
+            </div>
+          </div>
+
+          {/* Documents by Visibility */}
+          {docMetrics.by_visibility && Object.keys(docMetrics.by_visibility).length > 0 && (
+            <div>
+              <h3 style={{ fontSize: "1.1rem", fontWeight: 600, marginBottom: "1rem" }}>Documents by Visibility</h3>
+              <BarChart
+                data={Object.entries(docMetrics.by_visibility).map(([key, value]) => ({
+                  label: key,
+                  count: value
+                }))}
+                colors={colors}
+                width={Math.min(window.innerWidth - 200, 800)}
+                height={250}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Financial Operations */}
+      {showSection('financial') && financialOps && (
+        <div style={{ ...styles.card, marginBottom: "2rem" }}>
+          <h2 style={{ fontSize: "1.5rem", fontWeight: 600, marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <span>💳</span> Financial Operations
+          </h2>
+
+          {/* Payments by Purpose */}
+          {financialOps.by_purpose && Object.keys(financialOps.by_purpose).length > 0 && (
+            <div style={{ marginBottom: "2rem" }}>
+              <h3 style={{ fontSize: "1.1rem", fontWeight: 600, marginBottom: "1rem" }}>Payments by Purpose</h3>
+              <div style={{ display: "grid", gap: "1rem" }}>
+                {Object.entries(financialOps.by_purpose).map(([purpose, data]) => (
+                  <div key={purpose} style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    padding: "1rem",
+                    background: colors.background,
+                    borderRadius: "0.5rem",
+                    border: `1px solid ${colors.cardBorder}`
+                  }}>
+                    <div style={{ fontWeight: 500, textTransform: "capitalize" }}>{purpose.replace('_', ' ')}</div>
+                    <div style={{ display: "flex", gap: "2rem", alignItems: "center" }}>
+                      <span style={{ color: colors.textMuted }}>{data.count} payments</span>
+                      <span style={{ fontSize: "1.3rem", fontWeight: 700, color: colors.success }}>
+                        ${data.total_amount.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Payments by Provider */}
+          {financialOps.by_provider && Object.keys(financialOps.by_provider).length > 0 && (
+            <div style={{ marginBottom: "2rem" }}>
+              <h3 style={{ fontSize: "1.1rem", fontWeight: 600, marginBottom: "1rem" }}>Payments by Provider</h3>
+              <BarChart
+                data={Object.entries(financialOps.by_provider).map(([provider, data]) => ({
+                  label: provider,
+                  count: data.count
+                }))}
+                colors={colors}
+                width={Math.min(window.innerWidth - 200, 800)}
+                height={250}
+              />
+            </div>
+          )}
+
+          {/* Daily Payment Trends */}
+          {financialOps.daily_payments && financialOps.daily_payments.length > 0 && (
+            <div style={{ marginBottom: "2rem" }}>
+              <h3 style={{ fontSize: "1.1rem", fontWeight: 600, marginBottom: "1rem" }}>Daily Payment Trends</h3>
+              <LineChart
+                data={financialOps.daily_payments.map(d => ({ date: d.date, count: d.total }))}
+                colors={colors}
+                title="Daily Payments ($)"
+                width={Math.min(window.innerWidth - 200, 1000)}
+              />
+            </div>
+          )}
+
+          {/* Daily Expense Trends */}
+          {financialOps.daily_expenses && financialOps.daily_expenses.length > 0 && (
+            <div>
+              <h3 style={{ fontSize: "1.1rem", fontWeight: 600, marginBottom: "1rem" }}>Daily Expense Trends</h3>
+              <LineChart
+                data={financialOps.daily_expenses.map(d => ({ date: d.date, count: d.total }))}
+                colors={colors}
+                title="Daily Expenses ($)"
+                width={Math.min(window.innerWidth - 200, 1000)}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Operational Efficiency */}
+      {showSection('efficiency') && efficiency && (
+        <div style={{ ...styles.card, marginBottom: "2rem" }}>
+          <h2 style={{ fontSize: "1.5rem", fontWeight: 600, marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <span>⚡</span> Operational Efficiency
+          </h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "1.5rem" }}>
+            <div style={{ ...styles.statCard, background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)" }}>
+              <div style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>🏠</div>
+              <div style={{ fontSize: "2rem", fontWeight: 700 }}>{efficiency.avg_days_to_adoption} days</div>
+              <div style={{ fontSize: "0.9rem", opacity: 0.9 }}>Avg. Time to Adoption</div>
+            </div>
+            <div style={{ ...styles.statCard, background: "linear-gradient(135deg, #10b981 0%, #059669 100%)" }}>
+              <div style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>✅</div>
+              <div style={{ fontSize: "2rem", fontWeight: 700 }}>{efficiency.task_completion_rate_percent}%</div>
+              <div style={{ fontSize: "0.9rem", opacity: 0.9 }}>Task Completion Rate</div>
+            </div>
+            <div style={{ ...styles.statCard, background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)" }}>
+              <div style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>⏱️</div>
+              <div style={{ fontSize: "2rem", fontWeight: 700 }}>{efficiency.avg_task_completion_hours.toFixed(1)}h</div>
+              <div style={{ fontSize: "0.9rem", opacity: 0.9 }}>Avg. Task Completion Time</div>
+            </div>
+            <div style={{ ...styles.statCard, background: "linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)" }}>
+              <div style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>📋</div>
+              <div style={{ fontSize: "2rem", fontWeight: 700 }}>{efficiency.avg_application_processing_days.toFixed(1)} days</div>
+              <div style={{ fontSize: "0.9rem", opacity: 0.9 }}>Avg. Application Processing</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* User Activity */}
+      {showSection('users') && userActivity && (
+        <div style={{ ...styles.card, marginBottom: "2rem" }}>
+          <h2 style={{ fontSize: "1.5rem", fontWeight: 600, marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <span>👥</span> User & Staff Activity
+          </h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1.5rem", marginBottom: "2rem" }}>
+            <div>
+              <div style={{ fontSize: "2.5rem", fontWeight: 700, color: colors.accent }}>
+                {userActivity.total_users}
+              </div>
+              <div style={{ color: colors.textMuted, fontSize: "0.9rem" }}>Total Users</div>
+            </div>
+            <div>
+              <div style={{ fontSize: "2.5rem", fontWeight: 700, color: colors.success }}>
+                {userActivity.active_users}
+              </div>
+              <div style={{ color: colors.textMuted, fontSize: "0.9rem" }}>Active Users</div>
+            </div>
+            <div>
+              <div style={{ fontSize: "2.5rem", fontWeight: 700, color: colors.warning }}>
+                {userActivity.new_users}
+              </div>
+              <div style={{ color: colors.textMuted, fontSize: "0.9rem" }}>New Users (period)</div>
+            </div>
+          </div>
+
+          {/* Users by Role */}
+          {userActivity.users_by_role && Object.keys(userActivity.users_by_role).length > 0 && (
+            <div>
+              <h3 style={{ fontSize: "1.1rem", fontWeight: 600, marginBottom: "1rem" }}>Users by Role</h3>
+              <BarChart
+                data={Object.entries(userActivity.users_by_role).map(([role, count]) => ({
+                  label: role.replace('_', ' '),
+                  count: count
+                }))}
+                colors={colors}
+                width={Math.min(window.innerWidth - 200, 900)}
+                height={300}
+              />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Dashboard({ colors, styles }) {
   const [pets, setPets] = useState([]);
   const [apps, setApps] = useState([]);
@@ -5787,6 +6269,325 @@ function FosterProfileManagement({ colors, styles }) {
   );
 }
 
+// Foster Care Update Form
+function FosterCareUpdateForm({ colors, styles }) {
+  const [placements, setPlacements] = useState([]);
+  const [selectedPlacement, setSelectedPlacement] = useState('');
+  const [noteType, setNoteType] = useState('progress');
+  const [noteText, setNoteText] = useState('');
+  const [isImportant, setIsImportant] = useState(false);
+  const [notes, setNotes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    loadPlacements();
+  }, []);
+
+  useEffect(() => {
+    if (selectedPlacement) {
+      loadNotes(selectedPlacement);
+    }
+  }, [selectedPlacement]);
+
+  async function loadPlacements() {
+    setLoading(true);
+    try {
+      const response = await api.get('/foster-coordinator/placements');
+      // Filter to only active placements
+      const activePlacements = response.data.filter(p => p.outcome === 'active');
+      setPlacements(activePlacements);
+      if (activePlacements.length > 0) {
+        setSelectedPlacement(String(activePlacements[0].id));
+      }
+    } catch (err) {
+      console.error('Failed to load placements:', err);
+      setError('Failed to load placements');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadNotes(placementId) {
+    try {
+      const response = await api.get(`/foster-coordinator/placements/${placementId}/notes`);
+      setNotes(response.data || []);
+    } catch (err) {
+      console.error('Failed to load notes:', err);
+    }
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!selectedPlacement || !noteText.trim()) {
+      setError('Please select a placement and enter note text');
+      return;
+    }
+
+    setSubmitting(true);
+    setError('');
+    setSuccess(false);
+
+    try {
+      await api.post(`/foster-coordinator/placements/${selectedPlacement}/notes`, {
+        placement_id: parseInt(selectedPlacement),
+        note_type: noteType,
+        note_text: noteText.trim(),
+        is_important: isImportant
+      });
+
+      setSuccess(true);
+      setNoteText('');
+      setIsImportant(false);
+      setNoteType('progress');
+
+      // Reload notes
+      await loadNotes(selectedPlacement);
+
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (err) {
+      console.error('Failed to submit note:', err);
+      setError(err.response?.data?.detail || 'Failed to submit care update');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div style={{ ...styles.content, textAlign: "center", paddingTop: "4rem" }}>
+        <LoadingSpinner />
+        <p style={{ marginTop: "1rem", color: colors.textMuted }}>Loading placements...</p>
+      </div>
+    );
+  }
+
+  if (placements.length === 0) {
+    return (
+      <div style={styles.content}>
+        <h1 style={{ fontSize: "2rem", fontWeight: 700, marginBottom: "1rem" }}>Foster Care Updates</h1>
+        <div style={{ ...styles.card, textAlign: "center", padding: "3rem" }}>
+          <p style={{ color: colors.textMuted, fontSize: "1.1rem" }}>
+            No active foster placements found. Create a placement first to add care updates.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const currentPlacement = placements.find(p => p.id === parseInt(selectedPlacement));
+
+  return (
+    <div style={styles.content}>
+      {/* Header */}
+      <div style={{ marginBottom: "2rem" }}>
+        <h1 style={{ fontSize: "2rem", fontWeight: 700, marginBottom: "0.5rem" }}>
+          🐾 Foster Care Updates
+        </h1>
+        <p style={{ color: colors.textMuted, fontSize: "0.95rem" }}>
+          Add progress notes and updates for foster placements
+        </p>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2rem" }}>
+        {/* Left Column - Form */}
+        <div style={styles.card}>
+          <h2 style={{ fontSize: "1.3rem", fontWeight: 600, marginBottom: "1.5rem" }}>
+            Add Care Update
+          </h2>
+
+          {error && (
+            <div style={{
+              padding: "1rem",
+              background: colors.danger + "20",
+              border: `1px solid ${colors.danger}`,
+              borderRadius: "0.5rem",
+              color: colors.danger,
+              marginBottom: "1rem"
+            }}>
+              {error}
+            </div>
+          )}
+
+          {success && (
+            <div style={{
+              padding: "1rem",
+              background: colors.success + "20",
+              border: `1px solid ${colors.success}`,
+              borderRadius: "0.5rem",
+              color: colors.success,
+              marginBottom: "1rem"
+            }}>
+              Care update added successfully!
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+            {/* Placement Selection */}
+            <div>
+              <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 500 }}>
+                Foster Placement
+              </label>
+              <select
+                value={selectedPlacement}
+                onChange={(e) => setSelectedPlacement(e.target.value)}
+                style={styles.input}
+                required
+              >
+                {placements.map(placement => (
+                  <option key={placement.id} value={placement.id}>
+                    {placement.pet_name} with {placement.foster_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Current Placement Info */}
+            {currentPlacement && (
+              <div style={{
+                padding: "1rem",
+                background: colors.background,
+                borderRadius: "0.5rem",
+                border: `1px solid ${colors.cardBorder}`
+              }}>
+                <div style={{ marginBottom: "0.5rem" }}>
+                  <strong>Pet:</strong> {currentPlacement.pet_name}
+                </div>
+                <div style={{ marginBottom: "0.5rem" }}>
+                  <strong>Foster:</strong> {currentPlacement.foster_name}
+                </div>
+                <div style={{ marginBottom: "0.5rem" }}>
+                  <strong>Start Date:</strong> {new Date(currentPlacement.start_date).toLocaleDateString()}
+                </div>
+                <div>
+                  <strong>Duration:</strong> {Math.floor((new Date() - new Date(currentPlacement.start_date)) / (1000 * 60 * 60 * 24))} days
+                </div>
+              </div>
+            )}
+
+            {/* Note Type */}
+            <div>
+              <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 500 }}>
+                Update Type
+              </label>
+              <select
+                value={noteType}
+                onChange={(e) => setNoteType(e.target.value)}
+                style={styles.input}
+                required
+              >
+                <option value="progress">Progress Update</option>
+                <option value="health">Health Update</option>
+                <option value="behavior">Behavior Update</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            {/* Note Text */}
+            <div>
+              <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 500 }}>
+                Update Details
+              </label>
+              <textarea
+                value={noteText}
+                onChange={(e) => setNoteText(e.target.value)}
+                placeholder="Enter details about the foster pet's progress, health, behavior, or other updates..."
+                rows={6}
+                style={{ ...styles.input, minHeight: "150px", resize: "vertical" }}
+                required
+              />
+            </div>
+
+            {/* Is Important */}
+            <div>
+              <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={isImportant}
+                  onChange={(e) => setIsImportant(e.target.checked)}
+                  style={{ width: "18px", height: "18px", cursor: "pointer" }}
+                />
+                <span style={{ fontWeight: 500 }}>Mark as Important</span>
+              </label>
+              <p style={{ color: colors.textMuted, fontSize: "0.85rem", marginTop: "0.25rem", marginLeft: "1.5rem" }}>
+                Important updates will be highlighted and may trigger notifications
+              </p>
+            </div>
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={submitting}
+              style={{
+                ...styles.button('primary'),
+                opacity: submitting ? 0.6 : 1,
+                cursor: submitting ? 'not-allowed' : 'pointer'
+              }}
+            >
+              {submitting ? 'Submitting...' : 'Add Care Update'}
+            </button>
+          </form>
+        </div>
+
+        {/* Right Column - Recent Updates */}
+        <div style={styles.card}>
+          <h2 style={{ fontSize: "1.3rem", fontWeight: 600, marginBottom: "1.5rem" }}>
+            Recent Updates
+          </h2>
+
+          {notes.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "3rem", color: colors.textMuted }}>
+              No updates yet for this placement
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "1rem", maxHeight: "600px", overflowY: "auto" }}>
+              {notes.map(note => (
+                <div
+                  key={note.id}
+                  style={{
+                    padding: "1rem",
+                    background: note.is_important ? colors.warning + "10" : colors.background,
+                    borderRadius: "0.5rem",
+                    border: `1px solid ${note.is_important ? colors.warning : colors.cardBorder}`,
+                    borderLeft: `4px solid ${
+                      note.note_type === 'health' ? colors.danger :
+                      note.note_type === 'behavior' ? colors.warning :
+                      note.note_type === 'progress' ? colors.success :
+                      colors.accent
+                    }`
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", marginBottom: "0.5rem" }}>
+                    <span style={{
+                      ...styles.badge(note.note_type),
+                      textTransform: "capitalize"
+                    }}>
+                      {note.note_type}
+                    </span>
+                    <span style={{ fontSize: "0.85rem", color: colors.textMuted }}>
+                      {new Date(note.created_at).toLocaleDateString()} {new Date(note.created_at).toLocaleTimeString()}
+                    </span>
+                  </div>
+                  {note.is_important && (
+                    <div style={{ fontSize: "0.85rem", color: colors.warning, marginBottom: "0.5rem", fontWeight: 600 }}>
+                      ⚠️ Important
+                    </div>
+                  )}
+                  <div style={{ color: colors.text, lineHeight: "1.5" }}>
+                    {note.note_text}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // People Management Components
 function PeoplePage({ colors, styles }) {
   const [people, setPeople] = useState([]);
@@ -6977,6 +7778,23 @@ export default function App() {
           </button>
 
           <button
+            style={styles.navButton(view === "operations")}
+            onClick={() => setView("operations")}
+            onMouseEnter={(e) => {
+              if (view !== "operations") {
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (view !== "operations") {
+                e.currentTarget.style.background = "transparent";
+              }
+            }}
+          >
+            🔧 Operations
+          </button>
+
+          <button
             style={styles.navButton(view === "reports")}
             onClick={() => setView("reports")}
             onMouseEnter={(e) => {
@@ -7058,6 +7876,22 @@ export default function App() {
             👥 Foster Profiles
           </button>
           <button
+            style={styles.navButton(view === "foster-updates")}
+            onClick={() => setView("foster-updates")}
+            onMouseEnter={(e) => {
+              if (view !== "foster-updates") {
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (view !== "foster-updates") {
+                e.currentTarget.style.background = "transparent";
+              }
+            }}
+          >
+            📝 Foster Updates
+          </button>
+          <button
             style={styles.navButton(view === "settings")}
             onClick={() => setView("settings")}
             onMouseEnter={(e) => {
@@ -7096,12 +7930,14 @@ export default function App() {
       {view === "people" && <PeoplePage colors={colors} styles={styles} />}
       {view === "tasks" && <TasksPage colors={colors} styles={styles} />}
       {view === "analytics" && <AnalyticsPage colors={colors} styles={styles} />}
+      {view === "operations" && <OperationsDashboard colors={colors} styles={styles} />}
       {view === "reports" && <ReportsPage colors={colors} styles={styles} />}
       {view === "settings" && <SettingsPage colors={colors} styles={styles} />}
       {view === "my" && <MyPortal colors={colors} styles={styles} />}
       {view === "vet" && <VetPortal colors={colors} styles={styles} />}
       {view === "foster" && <FosterCoordinatorDashboard colors={colors} styles={styles} />}
       {view === "foster-profiles" && <FosterProfileManagement colors={colors} styles={styles} />}
+      {view === "foster-updates" && <FosterCareUpdateForm colors={colors} styles={styles} />}
     </div>
   );
 }
