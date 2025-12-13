@@ -28,12 +28,7 @@ from app.models import (
     TaskStatus,
     TaskPriority,
 )
-import bcrypt
-
-
-def get_password_hash(password: str) -> str:
-    """Hash a password using bcrypt"""
-    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+from app.security import get_password_hash
 
 
 # Test data generators
