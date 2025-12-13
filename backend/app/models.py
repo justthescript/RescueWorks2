@@ -192,6 +192,8 @@ class Pet(Base):
     weight = Column(Float, nullable=True)  # treat as pounds
     altered_status = Column(Enum(AlteredStatus), nullable=True)
     date_of_birth = Column(Date, nullable=True)
+    color = Column(String, nullable=True)
+    adoption_fee = Column(Float, nullable=True)
 
     status = Column(Enum(PetStatus), default=PetStatus.intake)
     description_public = Column(Text, nullable=True)

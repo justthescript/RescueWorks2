@@ -358,18 +358,27 @@ function Login({ onLogin }) {
 }
 
 
-function AnimalIntakeForm({ colors, styles }) {
+function AnimalIntakeForm({ colors, styles, setView }) {
+  // Get today's date in YYYY-MM-DD format
+  const getTodayDate = () => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  };
+
   const [formData, setFormData] = useState({
     name: "",
     species: "",
     sex: "",
     status: "intake",
 
-    intake_date: "",
+    intake_date: getTodayDate(),
     microchip_number: "",
     weight: "",
     altered_status: "",
     date_of_birth: "",
+    color: "",
+    adoption_fee: "",
+    foster_user_id: "",
 
     description_public: "",
     description_internal: "",
@@ -377,11 +386,24 @@ function AnimalIntakeForm({ colors, styles }) {
 });
 
   const [breedInputs, setBreedInputs] = useState(["", "", ""]);
-  const [openBreedIndex, setOpenBreedIndex] = useState(null);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [fosters, setFosters] = useState([]);
+
+  // Load fosters on mount
+  useEffect(() => {
+    async function loadFosters() {
+      try {
+        const res = await api.get("/people/", { params: { tags: "foster" } });
+        setFosters(res.data || []);
+      } catch (err) {
+        console.error("Failed to load fosters", err);
+      }
+    }
+    loadFosters();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -392,8 +414,8 @@ function AnimalIntakeForm({ colors, styles }) {
     }));
 
     if (name === "species") {
-      // When species changes, keep breed fields but close dropdown
-      setOpenBreedIndex(null);
+      // When species changes, reset breed fields
+      setBreedInputs(["", "", ""]);
     }
   };
 
@@ -403,29 +425,9 @@ function AnimalIntakeForm({ colors, styles }) {
       next[index] = value;
       return next;
     });
-    setOpenBreedIndex(index);
-  };
-
-  const handleBreedSelect = (index, value) => {
-    setBreedInputs((prev) => {
-      const next = [...prev];
-      next[index] = value;
-      return next;
-    });
-    setOpenBreedIndex(null);
   };
 
   const breedsForCurrentSpecies = getBreedsForSpecies(formData.species);
-
-  const getFilteredBreeds = (index) => {
-    const term = breedInputs[index].toLowerCase();
-    if (!breedsForCurrentSpecies.length) return [];
-    if (!term) return breedsForCurrentSpecies.slice(0, 15);
-
-    return breedsForCurrentSpecies
-      .filter((b) => b.toLowerCase().includes(term))
-      .slice(0, 15);
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -440,30 +442,23 @@ function AnimalIntakeForm({ colors, styles }) {
       .join(" / ");
 
     try {
-      await api.post("/pets/", {
+      const payload = {
         ...formData,
-        // org_id is auto-populated from authenticated user on backend
         breed: combinedBreed,
-      });
+      };
+
+      // Convert empty strings to null for optional fields
+      if (!payload.foster_user_id) delete payload.foster_user_id;
+      if (!payload.adoption_fee) delete payload.adoption_fee;
+
+      await api.post("/pets/", payload);
 
       setSuccess(`Successfully added ${formData.name} to intake.`);
 
-      setFormData({
-        name: "",
-        species: "",
-        sex: "",
-        status: "intake",
-        intake_date: "",
-        microchip_number: "",
-        weight: "",
-        altered_status: "",
-        date_of_birth: "",
-        description_public: "",
-        description_internal: "",
-        photo_url: "",
-      });
-      setBreedInputs(["", "", ""]);
-      setOpenBreedIndex(null);
+      // Navigate back to pets page after 1.5 seconds
+      setTimeout(() => {
+        setView("pets");
+      }, 1500);
     } catch (err) {
       console.error("Failed to create pet:", err);
       if (err.response?.data?.detail) {
@@ -635,6 +630,7 @@ function AnimalIntakeForm({ colors, styles }) {
                 name="sex"
                 value={formData.sex}
                 onChange={handleChange}
+                required
                 style={{
                   width: "100%",
                   padding: "0.75rem",
@@ -668,6 +664,7 @@ function AnimalIntakeForm({ colors, styles }) {
     name="intake_date"
     value={formData.intake_date}
     onChange={handleChange}
+    required
     style={{
       width: "100%",
       padding: "0.75rem",
@@ -724,6 +721,7 @@ function AnimalIntakeForm({ colors, styles }) {
     name="weight"
     value={formData.weight}
     onChange={handleChange}
+    required
     step="0.1"
     min="0"
     placeholder="Enter weight"
@@ -754,6 +752,7 @@ function AnimalIntakeForm({ colors, styles }) {
     name="altered_status"
     value={formData.altered_status}
     onChange={handleChange}
+    required
     style={{
       width: "100%",
       padding: "0.75rem",
@@ -799,6 +798,100 @@ function AnimalIntakeForm({ colors, styles }) {
   />
 </div>
 
+{/* Color */}
+<div>
+  <label
+    style={{
+      display: "block",
+      fontSize: "0.875rem",
+      fontWeight: 600,
+      marginBottom: "0.35rem",
+    }}
+  >
+    Color
+  </label>
+  <input
+    type="text"
+    name="color"
+    value={formData.color}
+    onChange={handleChange}
+    required
+    placeholder="e.g., Brown, Black and White"
+    style={{
+      width: "100%",
+      padding: "0.75rem",
+      borderRadius: "0.5rem",
+      border: `1px solid ${colors.cardBorder}`,
+      background: colors.background,
+      color: colors.text,
+    }}
+  />
+</div>
+
+{/* Adoption Fee */}
+<div>
+  <label
+    style={{
+      display: "block",
+      fontSize: "0.875rem",
+      fontWeight: 600,
+      marginBottom: "0.35rem",
+    }}
+  >
+    Adoption Fee ($)
+  </label>
+  <input
+    type="number"
+    name="adoption_fee"
+    value={formData.adoption_fee}
+    onChange={handleChange}
+    step="0.01"
+    min="0"
+    placeholder="Enter adoption fee"
+    style={{
+      width: "100%",
+      padding: "0.75rem",
+      borderRadius: "0.5rem",
+      border: `1px solid ${colors.cardBorder}`,
+      background: colors.background,
+      color: colors.text,
+    }}
+  />
+</div>
+
+{/* Foster Assignment */}
+<div>
+  <label
+    style={{
+      display: "block",
+      fontSize: "0.875rem",
+      fontWeight: 600,
+      marginBottom: "0.35rem",
+    }}
+  >
+    Assign Foster
+  </label>
+  <select
+    name="foster_user_id"
+    value={formData.foster_user_id}
+    onChange={handleChange}
+    style={{
+      width: "100%",
+      padding: "0.75rem",
+      borderRadius: "0.5rem",
+      border: `1px solid ${colors.cardBorder}`,
+      background: colors.background,
+      color: colors.text,
+    }}
+  >
+    <option value="">None</option>
+    {fosters.map((foster) => (
+      <option key={foster.id} value={foster.id}>
+        {foster.first_name} {foster.last_name}
+      </option>
+    ))}
+  </select>
+</div>
 
             {/* Status */}
             <div>
@@ -872,7 +965,7 @@ function AnimalIntakeForm({ colors, styles }) {
           </div>
 
 
-          {/* Breed typeahead for up to 3 breeds */}
+          {/* Breed dropdowns for up to 3 breeds */}
           <div style={{ marginBottom: "1.5rem" }}>
             <label
               style={{
@@ -884,7 +977,7 @@ function AnimalIntakeForm({ colors, styles }) {
             >
               Breed
               <span style={{ fontWeight: 400, fontSize: "0.8rem", marginLeft: "0.25rem", color: colors.textMuted }}>
-                up to 3 breeds, useful for mixed breeds
+                (up to 3 breeds, useful for mixed breeds)
               </span>
             </label>
 
@@ -895,43 +988,36 @@ function AnimalIntakeForm({ colors, styles }) {
                 gap: "0.75rem",
               }}
             >
-              {[0, 1, 2].map((idx) => {
-                const filtered = getFilteredBreeds(idx);
-                const showDropdown =
-                  openBreedIndex === idx &&
-                  filtered.length > 0 &&
-                  formData.species &&
-                  formData.species !== "Other";
-
-                return (
-                  <div
-                    key={idx}
-                    style={{ position: "relative", minWidth: 0 }}
-                  >
+              {[0, 1, 2].map((idx) => (
+                <div key={idx}>
+                  {formData.species && formData.species !== "Other" && breedsForCurrentSpecies.length > 0 ? (
+                    <select
+                      value={breedInputs[idx]}
+                      onChange={(e) => handleBreedChange(idx, e.target.value)}
+                      required={idx === 0}
+                      style={{
+                        width: "100%",
+                        padding: "0.75rem",
+                        borderRadius: "0.5rem",
+                        border: `1px solid ${colors.cardBorder}`,
+                        background: colors.background,
+                        color: colors.text,
+                      }}
+                    >
+                      <option value="">{idx === 0 ? "Select primary breed" : "Select additional breed (optional)"}</option>
+                      {breedsForCurrentSpecies.map((breed) => (
+                        <option key={breed} value={breed}>
+                          {breed}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
                     <input
                       type="text"
                       value={breedInputs[idx]}
-                      onChange={(e) =>
-                        handleBreedChange(idx, e.target.value)
-                      }
-                      onFocus={() => {
-                        if (formData.species && formData.species !== "Other") {
-                          setOpenBreedIndex(idx);
-                        }
-                      }}
-                      onBlur={() => {
-                        // Small delay so click on option is registered
-                        setTimeout(() => {
-                          setOpenBreedIndex((current) =>
-                            current === idx ? null : current
-                          );
-                        }, 150);
-                      }}
-                      placeholder={
-                        formData.species && formData.species !== "Other"
-                          ? "Start typing to search breeds"
-                          : "Free text breed"
-                      }
+                      onChange={(e) => handleBreedChange(idx, e.target.value)}
+                      required={idx === 0}
+                      placeholder={idx === 0 ? "Enter breed" : "Enter additional breed (optional)"}
                       style={{
                         width: "100%",
                         padding: "0.75rem",
@@ -941,51 +1027,9 @@ function AnimalIntakeForm({ colors, styles }) {
                         color: colors.text,
                       }}
                     />
-
-                    {showDropdown && (
-                      <div
-                        style={{
-                          position: "absolute",
-                          top: "100%",
-                          left: 0,
-                          right: 0,
-                          zIndex: 10,
-                          marginTop: "0.25rem",
-                          maxHeight: "220px",
-                          overflowY: "auto",
-                          background: colors.background,
-                          borderRadius: "0.5rem",
-                          border: `1px solid ${colors.cardBorder}`,
-                          boxShadow:
-                            "0 8px 20px rgba(15, 23, 42, 0.25)",
-                        }}
-                      >
-                        {filtered.map((b) => (
-                          <button
-                            key={b}
-                            type="button"
-                            onMouseDown={(e) => {
-                              e.preventDefault();
-                              handleBreedSelect(idx, b);
-                            }}
-                            style={{
-                              width: "100%",
-                              padding: "0.5rem 0.75rem",
-                              textAlign: "left",
-                              border: "none",
-                              background: "transparent",
-                              cursor: "pointer",
-                              fontSize: "0.9rem",
-                            }}
-                          >
-                            {b}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                  )}
+                </div>
+              ))}
             </div>
           </div>
 
@@ -1005,6 +1049,7 @@ function AnimalIntakeForm({ colors, styles }) {
               name="description_public"
               value={formData.description_public}
               onChange={handleChange}
+              required
               maxLength={2000}
               rows={3}
               placeholder="Short bio for adopters and fosters"
@@ -3242,7 +3287,7 @@ function Dashboard({ colors, styles }) {
   );
 }
 
-function PetsPage({ colors, styles }) {
+function PetsPage({ colors, styles, setView }) {
   const [pets, setPets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -3353,6 +3398,15 @@ function PetsPage({ colors, styles }) {
             <option value="pending">Pending</option>
             <option value="adopted">Adopted</option>
           </select>
+          <button
+            onClick={() => setView("intake")}
+            style={{
+              ...styles.button("primary"),
+              marginLeft: "auto",
+            }}
+          >
+            ➕ Add Pet
+          </button>
         </div>
       </div>
 
@@ -7223,12 +7277,15 @@ function PersonProfile({ colors, styles, personId, onBack }) {
   const [applications, setApplications] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [newNote, setNewNote] = useState("");
+  const [fosterProfile, setFosterProfile] = useState(null);
+  const [editingFosterProfile, setEditingFosterProfile] = useState(false);
 
   useEffect(() => {
     loadPerson();
     loadNotes();
     loadApplications();
     loadDocuments();
+    loadFosterProfile();
   }, [personId]);
 
   const loadPerson = async () => {
@@ -7266,6 +7323,56 @@ function PersonProfile({ colors, styles, personId, onBack }) {
       setDocuments(res.data);
     } catch (err) {
       console.error("Failed to load documents:", err);
+    }
+  };
+
+  const loadFosterProfile = async () => {
+    try {
+      // Try to get existing foster profile
+      const res = await api.get(`/foster-coordinator/profiles/by-person/${personId}`);
+      if (res.data && res.data.length > 0) {
+        setFosterProfile(res.data[0]);
+      } else {
+        // Check if person has foster tag and create default profile
+        const personRes = await api.get(`/people/${personId}`);
+        if (personRes.data.tag_foster || personRes.data.tag_current_foster || personRes.data.tag_available_foster) {
+          await createDefaultFosterProfile();
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load foster profile:", err);
+    }
+  };
+
+  const createDefaultFosterProfile = async () => {
+    try {
+      const defaultProfile = {
+        person_id: parseInt(personId),
+        experience_level: "beginner",
+        max_capacity: 1,
+        home_type: "house",
+        has_yard: true,
+        can_handle_medical: true,
+        can_handle_behavioral: true,
+        is_active: true,
+        preferred_species: "",
+        preferred_age_ranges: "",
+        notes: ""
+      };
+      const res = await api.post("/foster-coordinator/profiles/", defaultProfile);
+      setFosterProfile(res.data);
+    } catch (err) {
+      console.error("Failed to create default foster profile:", err);
+    }
+  };
+
+  const updateFosterProfile = async (updates) => {
+    try {
+      const res = await api.put(`/foster-coordinator/profiles/${fosterProfile.id}`, updates);
+      setFosterProfile(res.data);
+      setEditingFosterProfile(false);
+    } catch (err) {
+      console.error("Failed to update foster profile:", err);
     }
   };
 
@@ -7526,6 +7633,133 @@ function PersonProfile({ colors, styles, personId, onBack }) {
                 )}
               </div>
             </div>
+
+            {/* Foster Profile Section */}
+            {(person.tag_foster || person.tag_current_foster || person.tag_available_foster) && fosterProfile && (
+              <div style={{ marginTop: "2rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+                  <h2 style={{ fontSize: "1.25rem", fontWeight: 600 }}>
+                    Foster Profile
+                  </h2>
+                  <button
+                    onClick={() => setEditingFosterProfile(!editingFosterProfile)}
+                    style={styles.button("primary")}
+                  >
+                    {editingFosterProfile ? "Cancel Edit" : "Edit Profile"}
+                  </button>
+                </div>
+
+                {editingFosterProfile ? (
+                  <div style={{ display: "grid", gap: "1rem", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))" }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.35rem" }}>
+                        Experience Level
+                      </label>
+                      <select
+                        value={fosterProfile.experience_level}
+                        onChange={(e) => updateFosterProfile({ experience_level: e.target.value })}
+                        style={styles.input}
+                      >
+                        <option value="none">None</option>
+                        <option value="beginner">Beginner</option>
+                        <option value="intermediate">Intermediate</option>
+                        <option value="advanced">Advanced</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.35rem" }}>
+                        Max Capacity
+                      </label>
+                      <input
+                        type="number"
+                        value={fosterProfile.max_capacity}
+                        onChange={(e) => updateFosterProfile({ max_capacity: parseInt(e.target.value) })}
+                        style={styles.input}
+                        min="0"
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.35rem" }}>
+                        Home Type
+                      </label>
+                      <select
+                        value={fosterProfile.home_type}
+                        onChange={(e) => updateFosterProfile({ home_type: e.target.value })}
+                        style={styles.input}
+                      >
+                        <option value="house">House</option>
+                        <option value="apartment">Apartment</option>
+                        <option value="condo">Condo</option>
+                        <option value="townhouse">Townhouse</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.875rem", fontWeight: 600 }}>
+                        <input
+                          type="checkbox"
+                          checked={fosterProfile.has_yard}
+                          onChange={(e) => updateFosterProfile({ has_yard: e.target.checked })}
+                        />
+                        Has Yard
+                      </label>
+                    </div>
+
+                    <div>
+                      <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.875rem", fontWeight: 600 }}>
+                        <input
+                          type="checkbox"
+                          checked={fosterProfile.can_handle_medical}
+                          onChange={(e) => updateFosterProfile({ can_handle_medical: e.target.checked })}
+                        />
+                        Can Handle Medical
+                      </label>
+                    </div>
+
+                    <div>
+                      <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.875rem", fontWeight: 600 }}>
+                        <input
+                          type="checkbox"
+                          checked={fosterProfile.can_handle_behavioral}
+                          onChange={(e) => updateFosterProfile({ can_handle_behavioral: e.target.checked })}
+                        />
+                        Can Handle Behavioral
+                      </label>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: "grid", gap: "1rem", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))" }}>
+                    <div>
+                      <strong style={{ color: colors.textMuted }}>Experience Level:</strong>
+                      <div style={{ textTransform: "capitalize" }}>{fosterProfile.experience_level}</div>
+                    </div>
+                    <div>
+                      <strong style={{ color: colors.textMuted }}>Max Capacity:</strong>
+                      <div>{fosterProfile.max_capacity}</div>
+                    </div>
+                    <div>
+                      <strong style={{ color: colors.textMuted }}>Home Type:</strong>
+                      <div style={{ textTransform: "capitalize" }}>{fosterProfile.home_type}</div>
+                    </div>
+                    <div>
+                      <strong style={{ color: colors.textMuted }}>Has Yard:</strong>
+                      <div>{fosterProfile.has_yard ? "Yes" : "No"}</div>
+                    </div>
+                    <div>
+                      <strong style={{ color: colors.textMuted }}>Can Handle Medical:</strong>
+                      <div>{fosterProfile.can_handle_medical ? "Yes" : "No"}</div>
+                    </div>
+                    <div>
+                      <strong style={{ color: colors.textMuted }}>Can Handle Behavioral:</strong>
+                      <div>{fosterProfile.can_handle_behavioral ? "Yes" : "No"}</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -7710,23 +7944,6 @@ export default function App() {
 </button>
 
 <button
-  style={styles.navButton(view === "intake")}
-  onClick={() => setView("intake")}
-  onMouseEnter={(e) => {
-    if (view !== "intake") {
-      e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
-    }
-  }}
-  onMouseLeave={(e) => {
-    if (view !== "intake") {
-      e.currentTarget.style.background = "transparent";
-    }
-  }}
->
-  📝 Intake
-          </button>
-
-          <button
             style={styles.navButton(view === "people")}
             onClick={() => setView("people")}
             onMouseEnter={(e) => {
@@ -7925,8 +8142,8 @@ export default function App() {
         </nav>
       </header>
       {view === "dashboard" && <Dashboard colors={colors} styles={styles} />}
-      {view === "pets" && <PetsPage colors={colors} styles={styles} />}
-      {view === "intake" && <AnimalIntakeForm colors={colors} styles={styles} />}
+      {view === "pets" && <PetsPage colors={colors} styles={styles} setView={setView} />}
+      {view === "intake" && <AnimalIntakeForm colors={colors} styles={styles} setView={setView} />}
       {view === "people" && <PeoplePage colors={colors} styles={styles} />}
       {view === "tasks" && <TasksPage colors={colors} styles={styles} />}
       {view === "analytics" && <AnalyticsPage colors={colors} styles={styles} />}
