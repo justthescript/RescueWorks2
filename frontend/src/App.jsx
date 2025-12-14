@@ -7893,9 +7893,50 @@ export default function App() {
   const [token, setToken] = useState(null);
   const [view, setView] = useState("dashboard");
   const [isDark, setIsDark] = useState(false);
+  const [currentUserRoles, setCurrentUserRoles] = useState([]);
 
   const colors = themes[isDark ? "dark" : "light"];
   const styles = getLayoutStyles(colors);
+
+  // Fetch current user's roles when token is set
+  useEffect(() => {
+    if (token) {
+      api.get("/auth/me/roles")
+        .then((res) => {
+          setCurrentUserRoles(res.data.map(role => role.name));
+        })
+        .catch((err) => {
+          console.error("Failed to load current user roles", err);
+          setCurrentUserRoles([]);
+        });
+    } else {
+      setCurrentUserRoles([]);
+    }
+  }, [token]);
+
+  // Define which roles can access which tabs
+  const tabPermissions = {
+    dashboard: ["super_admin", "admin", "application_screener", "pet_coordinator", "event_coordinator", "veterinarian", "billing_manager", "adopter", "foster", "volunteer", "board_member"],
+    pets: ["super_admin", "admin", "pet_coordinator", "veterinarian", "foster"],
+    people: ["super_admin", "admin", "application_screener", "pet_coordinator"],
+    tasks: ["super_admin", "admin", "pet_coordinator", "event_coordinator", "veterinarian"],
+    analytics: ["super_admin", "admin", "board_member"],
+    operations: ["super_admin", "admin", "pet_coordinator", "event_coordinator"],
+    reports: ["super_admin", "admin", "billing_manager", "board_member"],
+    my: ["super_admin", "admin", "application_screener", "pet_coordinator", "event_coordinator", "veterinarian", "billing_manager", "adopter", "foster", "volunteer", "board_member"],
+    vet: ["super_admin", "admin", "veterinarian"],
+    foster: ["super_admin", "admin", "pet_coordinator"],
+    "foster-profiles": ["super_admin", "admin", "pet_coordinator", "foster"],
+    "foster-updates": ["super_admin", "admin", "pet_coordinator", "foster"],
+    settings: ["super_admin", "admin"],
+  };
+
+  // Helper function to check if user has access to a tab
+  const hasAccess = (tabName) => {
+    if (!tabPermissions[tabName]) return true; // Show tabs without defined permissions
+    if (currentUserRoles.length === 0) return false; // Don't show if roles haven't loaded
+    return currentUserRoles.some(role => tabPermissions[tabName].includes(role));
+  };
 
   if (!token) {
     return <Login onLogin={setToken} />;
@@ -7909,221 +7950,252 @@ export default function App() {
           <span>RescueWorks</span>
         </div>
         <nav style={styles.nav}>
-          <button
-  style={styles.navButton(view === "dashboard")}
-  onClick={() => setView("dashboard")}
-  onMouseEnter={(e) => {
-    if (view !== "dashboard") {
-      e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
-    }
-  }}
-  onMouseLeave={(e) => {
-    if (view !== "dashboard") {
-      e.currentTarget.style.background = "transparent";
-    }
-  }}
->
-  🏠 Dashboard
-</button>
+          {hasAccess("dashboard") && (
+            <button
+              style={styles.navButton(view === "dashboard")}
+              onClick={() => setView("dashboard")}
+              onMouseEnter={(e) => {
+                if (view !== "dashboard") {
+                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (view !== "dashboard") {
+                  e.currentTarget.style.background = "transparent";
+                }
+              }}
+            >
+              🏠 Dashboard
+            </button>
+          )}
 
-<button
-  style={styles.navButton(view === "pets")}
-  onClick={() => setView("pets")}
-  onMouseEnter={(e) => {
-    if (view !== "pets") {
-      e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
-    }
-  }}
-  onMouseLeave={(e) => {
-    if (view !== "pets") {
-      e.currentTarget.style.background = "transparent";
-    }
-  }}
->
-  🐾 Pets
-</button>
+          {hasAccess("pets") && (
+            <button
+              style={styles.navButton(view === "pets")}
+              onClick={() => setView("pets")}
+              onMouseEnter={(e) => {
+                if (view !== "pets") {
+                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (view !== "pets") {
+                  e.currentTarget.style.background = "transparent";
+                }
+              }}
+            >
+              🐾 Pets
+            </button>
+          )}
 
-<button
-            style={styles.navButton(view === "people")}
-            onClick={() => setView("people")}
-            onMouseEnter={(e) => {
-              if (view !== "people") {
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (view !== "people") {
-                e.currentTarget.style.background = "transparent";
-              }
-            }}
-          >
-            👥 People
-          </button>
+          {hasAccess("people") && (
+            <button
+              style={styles.navButton(view === "people")}
+              onClick={() => setView("people")}
+              onMouseEnter={(e) => {
+                if (view !== "people") {
+                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (view !== "people") {
+                  e.currentTarget.style.background = "transparent";
+                }
+              }}
+            >
+              👥 People
+            </button>
+          )}
 
-          <button
-            style={styles.navButton(view === "tasks")}
-            onClick={() => setView("tasks")}
-            onMouseEnter={(e) => {
-              if (view !== "tasks") {
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (view !== "tasks") {
-                e.currentTarget.style.background = "transparent";
-              }
-            }}
-          >
-            ✅ Tasks
-          </button>
+          {hasAccess("tasks") && (
+            <button
+              style={styles.navButton(view === "tasks")}
+              onClick={() => setView("tasks")}
+              onMouseEnter={(e) => {
+                if (view !== "tasks") {
+                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (view !== "tasks") {
+                  e.currentTarget.style.background = "transparent";
+                }
+              }}
+            >
+              ✅ Tasks
+            </button>
+          )}
 
-          <button
-            style={styles.navButton(view === "analytics")}
-            onClick={() => setView("analytics")}
-            onMouseEnter={(e) => {
-              if (view !== "analytics") {
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (view !== "analytics") {
-                e.currentTarget.style.background = "transparent";
-              }
-            }}
-          >
-            📊 Analytics
-          </button>
+          {hasAccess("analytics") && (
+            <button
+              style={styles.navButton(view === "analytics")}
+              onClick={() => setView("analytics")}
+              onMouseEnter={(e) => {
+                if (view !== "analytics") {
+                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (view !== "analytics") {
+                  e.currentTarget.style.background = "transparent";
+                }
+              }}
+            >
+              📊 Analytics
+            </button>
+          )}
 
-          <button
-            style={styles.navButton(view === "operations")}
-            onClick={() => setView("operations")}
-            onMouseEnter={(e) => {
-              if (view !== "operations") {
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (view !== "operations") {
-                e.currentTarget.style.background = "transparent";
-              }
-            }}
-          >
-            🔧 Operations
-          </button>
+          {hasAccess("operations") && (
+            <button
+              style={styles.navButton(view === "operations")}
+              onClick={() => setView("operations")}
+              onMouseEnter={(e) => {
+                if (view !== "operations") {
+                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (view !== "operations") {
+                  e.currentTarget.style.background = "transparent";
+                }
+              }}
+            >
+              🔧 Operations
+            </button>
+          )}
 
-          <button
-            style={styles.navButton(view === "reports")}
-            onClick={() => setView("reports")}
-            onMouseEnter={(e) => {
-              if (view !== "reports") {
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (view !== "reports") {
-                e.currentTarget.style.background = "transparent";
-              }
-            }}
-          >
-            📥 Reports
-          </button>
+          {hasAccess("reports") && (
+            <button
+              style={styles.navButton(view === "reports")}
+              onClick={() => setView("reports")}
+              onMouseEnter={(e) => {
+                if (view !== "reports") {
+                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (view !== "reports") {
+                  e.currentTarget.style.background = "transparent";
+                }
+              }}
+            >
+              📥 Reports
+            </button>
+          )}
 
-          <button
-            style={styles.navButton(view === "my")}
-            onClick={() => setView("my")}
-            onMouseEnter={(e) => {
-              if (view !== "my") {
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (view !== "my") {
-                e.currentTarget.style.background = "transparent";
-              }
-            }}
-          >
-            👤 My Portal
-          </button>
-          <button
-            style={styles.navButton(view === "vet")}
-            onClick={() => setView("vet")}
-            onMouseEnter={(e) => {
-              if (view !== "vet") {
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (view !== "vet") {
-                e.currentTarget.style.background = "transparent";
-              }
-            }}
-          >
-            🏥 Vet Portal
-          </button>
-          <button
-            style={styles.navButton(view === "foster")}
-            onClick={() => setView("foster")}
-            onMouseEnter={(e) => {
-              if (view !== "foster") {
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (view !== "foster") {
-                e.currentTarget.style.background = "transparent";
-              }
-            }}
-          >
-            🏡 Foster Coordinator
-          </button>
-          <button
-            style={styles.navButton(view === "foster-profiles")}
-            onClick={() => setView("foster-profiles")}
-            onMouseEnter={(e) => {
-              if (view !== "foster-profiles") {
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (view !== "foster-profiles") {
-                e.currentTarget.style.background = "transparent";
-              }
-            }}
-          >
-            👥 Foster Profiles
-          </button>
-          <button
-            style={styles.navButton(view === "foster-updates")}
-            onClick={() => setView("foster-updates")}
-            onMouseEnter={(e) => {
-              if (view !== "foster-updates") {
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (view !== "foster-updates") {
-                e.currentTarget.style.background = "transparent";
-              }
-            }}
-          >
-            📝 Foster Updates
-          </button>
-          <button
-            style={styles.navButton(view === "settings")}
-            onClick={() => setView("settings")}
-            onMouseEnter={(e) => {
-              if (view !== "settings") {
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (view !== "settings") {
-                e.currentTarget.style.background = "transparent";
-              }
-            }}
-          >
-            ⚙️ Settings
-          </button>
+          {hasAccess("my") && (
+            <button
+              style={styles.navButton(view === "my")}
+              onClick={() => setView("my")}
+              onMouseEnter={(e) => {
+                if (view !== "my") {
+                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (view !== "my") {
+                  e.currentTarget.style.background = "transparent";
+                }
+              }}
+            >
+              👤 My Portal
+            </button>
+          )}
+
+          {hasAccess("vet") && (
+            <button
+              style={styles.navButton(view === "vet")}
+              onClick={() => setView("vet")}
+              onMouseEnter={(e) => {
+                if (view !== "vet") {
+                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (view !== "vet") {
+                  e.currentTarget.style.background = "transparent";
+                }
+              }}
+            >
+              🏥 Vet Portal
+            </button>
+          )}
+
+          {hasAccess("foster") && (
+            <button
+              style={styles.navButton(view === "foster")}
+              onClick={() => setView("foster")}
+              onMouseEnter={(e) => {
+                if (view !== "foster") {
+                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (view !== "foster") {
+                  e.currentTarget.style.background = "transparent";
+                }
+              }}
+            >
+              🏡 Foster Coordinator
+            </button>
+          )}
+
+          {hasAccess("foster-profiles") && (
+            <button
+              style={styles.navButton(view === "foster-profiles")}
+              onClick={() => setView("foster-profiles")}
+              onMouseEnter={(e) => {
+                if (view !== "foster-profiles") {
+                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (view !== "foster-profiles") {
+                  e.currentTarget.style.background = "transparent";
+                }
+              }}
+            >
+              👥 Foster Profiles
+            </button>
+          )}
+
+          {hasAccess("foster-updates") && (
+            <button
+              style={styles.navButton(view === "foster-updates")}
+              onClick={() => setView("foster-updates")}
+              onMouseEnter={(e) => {
+                if (view !== "foster-updates") {
+                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (view !== "foster-updates") {
+                  e.currentTarget.style.background = "transparent";
+                }
+              }}
+            >
+              📝 Foster Updates
+            </button>
+          )}
+
+          {hasAccess("settings") && (
+            <button
+              style={styles.navButton(view === "settings")}
+              onClick={() => setView("settings")}
+              onMouseEnter={(e) => {
+                if (view !== "settings") {
+                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (view !== "settings") {
+                  e.currentTarget.style.background = "transparent";
+                }
+              }}
+            >
+              ⚙️ Settings
+            </button>
+          )}
           <button
             onClick={() => setIsDark(!isDark)}
             style={{
