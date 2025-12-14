@@ -104,6 +104,21 @@ def get_roles(
     return roles
 
 
+@router.get("/me/roles", response_model=List[schemas.Role])
+def get_current_user_roles(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get roles for the currently authenticated user"""
+    roles = (
+        db.query(models.Role)
+        .join(models.UserRole, models.UserRole.role_id == models.Role.id)
+        .filter(models.UserRole.user_id == current_user.id)
+        .all()
+    )
+    return roles
+
+
 @router.get("/users/{user_id}/roles", response_model=List[schemas.Role])
 def get_user_roles(
     user_id: int,
