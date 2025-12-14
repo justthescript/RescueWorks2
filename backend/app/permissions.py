@@ -8,6 +8,7 @@ from .deps import get_current_user, get_db
 
 ROLE_SUPER_ADMIN = "super_admin"
 ROLE_ADMIN = "admin"
+ROLE_STAFF = "staff"
 ROLE_APPLICATION_SCREENER = "application_screener"
 ROLE_PET_COORDINATOR = "pet_coordinator"
 ROLE_EVENT_COORDINATOR = "event_coordinator"

@@ -7916,19 +7916,19 @@ export default function App() {
 
   // Define which roles can access which tabs
   const tabPermissions = {
-    dashboard: ["super_admin", "admin", "application_screener", "pet_coordinator", "event_coordinator", "veterinarian", "billing_manager", "adopter", "foster", "volunteer", "board_member"],
-    pets: ["super_admin", "admin", "pet_coordinator", "veterinarian", "foster"],
-    people: ["super_admin", "admin", "application_screener", "pet_coordinator"],
-    tasks: ["super_admin", "admin", "pet_coordinator", "event_coordinator", "veterinarian"],
+    dashboard: ["super_admin", "admin", "staff", "application_screener", "pet_coordinator", "event_coordinator", "billing_manager", "adopter", "foster", "volunteer", "board_member"],
+    pets: ["super_admin", "admin", "staff", "pet_coordinator", "foster", "volunteer"],
+    people: ["super_admin", "admin", "staff", "application_screener", "pet_coordinator", "volunteer"],
+    tasks: ["super_admin", "admin", "staff", "pet_coordinator", "event_coordinator"],
     analytics: ["super_admin", "admin", "board_member"],
     operations: ["super_admin", "admin", "pet_coordinator", "event_coordinator"],
     reports: ["super_admin", "admin", "billing_manager", "board_member"],
-    my: ["super_admin", "admin", "application_screener", "pet_coordinator", "event_coordinator", "veterinarian", "billing_manager", "adopter", "foster", "volunteer", "board_member"],
+    my: ["super_admin", "admin", "staff", "application_screener", "pet_coordinator", "event_coordinator", "billing_manager", "adopter", "foster", "board_member"],
     vet: ["super_admin", "admin", "veterinarian"],
     foster: ["super_admin", "admin", "pet_coordinator"],
     "foster-profiles": ["super_admin", "admin", "pet_coordinator", "foster"],
-    "foster-updates": ["super_admin", "admin", "pet_coordinator", "foster"],
-    settings: ["super_admin", "admin"],
+    "foster-updates": ["super_admin", "admin", "foster"],
+    settings: ["super_admin", "admin", "staff", "volunteer", "veterinarian"],
   };
 
   // Helper function to check if user has access to a tab
