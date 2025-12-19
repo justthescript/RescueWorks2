@@ -1,4 +1,5 @@
 import logging
+import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -33,11 +34,12 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="RescueWorks Backend")
 
-origins = [
-    "http://localhost:5173",
-    "http://localhost:3000",
-    "http://localhost:19006",
-]
+# Read CORS origins from environment variable, fallback to localhost for development
+cors_origins_str = os.getenv(
+    "CORS_ORIGINS",
+    "http://localhost:5173,http://localhost:3000,http://localhost:19006"
+)
+origins = [origin.strip() for origin in cors_origins_str.split(",")]
 
 app.add_middleware(
     CORSMiddleware,

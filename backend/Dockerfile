@@ -10,16 +10,13 @@ RUN apt-get update && apt-get install -y \
 
 # Copy requirements and install Python dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt gunicorn
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . .
 
-# Collect static files (for Django)
-# RUN python manage.py collectstatic --noinput
-
 # Expose port
 EXPOSE 8000
 
-# Start command (Railway will override this with railway.json)
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "wsgi:application"]
+# Start command for FastAPI with uvicorn
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
