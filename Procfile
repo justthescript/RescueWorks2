@@ -1,2 +1,2 @@
-web: cd backend && gunicorn --bind 0.0.0.0:$PORT --workers 4 wsgi:application
-release: cd backend && python manage.py migrate
+web: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+release: cd backend && alembic upgrade head
