@@ -4,6 +4,7 @@ set -e
 echo "========================================"
 echo "RescueWorks Backend Startup"
 echo "========================================"
+echo "Build: $(date)"
 
 # Show database connection info (masked for security)
 if [ -n "$DATABASE_URL" ]; then
