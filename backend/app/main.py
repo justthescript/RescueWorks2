@@ -37,7 +37,7 @@ app = FastAPI(title="RescueWorks Backend")
 # Read CORS origins from environment variable, fallback to localhost for development
 cors_origins_str = os.getenv(
     "CORS_ORIGINS",
-    "http://localhost:5173,http://localhost:3000,http://localhost:19006"
+    "http://localhost:5173,http://localhost:3000,http://localhost:19006, https://rescue-works-frontend.vercel.app/"
 )
 origins = [origin.strip() for origin in cors_origins_str.split(",")]
 
