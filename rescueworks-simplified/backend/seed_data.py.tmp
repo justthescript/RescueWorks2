@@ -1,0 +1,12 @@
+        animals_data = [
+            {"name": "Max", "species": "Dog", "breed": "Labrador Retriever", "age_years": 3, "sex": "Male", "weight": 65.0, "color": "Golden", "status": PetStatus.intake, "medical_notes": "Needs vaccinations"},
+            {"name": "Luna", "species": "Dog", "breed": "German Shepherd", "age_years": 2, "sex": "Female", "weight": 55.0, "color": "Black and Tan", "status": PetStatus.needs_foster},
+            {"name": "Bella", "species": "Cat", "breed": "Domestic Shorthair", "age_years": 1, "sex": "Female", "weight": 8.5, "color": "Calico", "status": PetStatus.intake},
+            {"name": "Charlie", "species": "Dog", "breed": "Beagle", "age_years": 5, "sex": "Male", "weight": 25.0, "color": "Tri-color", "status": PetStatus.in_foster, "behavioral_notes": "Very energetic"},
+            {"name": "Daisy", "species": "Cat", "breed": "Persian", "age_years": 3, "sex": "Female", "weight": 10.0, "color": "White", "status": PetStatus.available},
+            {"name": "Rocky", "species": "Dog", "breed": "Pit Bull", "age_years": 4, "sex": "Male", "weight": 70.0, "color": "Brindle", "status": PetStatus.needs_foster, "medical_notes": "Minor skin allergies"},
+            {"name": "Mittens", "species": "Cat", "breed": "Tabby", "age_years": 2, "sex": "Female", "weight": 9.0, "color": "Orange", "status": PetStatus.in_foster},
+            {"name": "Buddy", "species": "Dog", "breed": "Golden Retriever", "age_years": 6, "sex": "Male", "weight": 75.0, "color": "Golden", "status": PetStatus.adopted},
+            {"name": "Shadow", "species": "Cat", "breed": "Black Cat", "age_years": 1, "sex": "Male", "weight": 7.5, "color": "Black", "status": PetStatus.available},
+            {"name": "Molly", "species": "Dog", "breed": "Poodle", "age_years": 3, "sex": "Female", "weight": 45.0, "color": "White", "status": PetStatus.intake},
+        ]
