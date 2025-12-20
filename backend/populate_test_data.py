@@ -58,6 +58,12 @@ CAT_BREEDS = [
     "Exotic Shorthair", "Himalayan", "Burmese", "Russian Blue", "Mixed Breed"
 ]
 
+COLORS = [
+    "Black", "White", "Brown", "Gray", "Tan", "Cream", "Orange", "Calico",
+    "Tabby", "Spotted", "Brindle", "Merle", "Tricolor", "Bicolor", "Tuxedo",
+    "Tortoiseshell", "Golden", "Silver", "Chocolate", "Red"
+]
+
 FIRST_NAMES = [
     "Emma", "Liam", "Olivia", "Noah", "Ava", "Ethan", "Sophia", "Mason",
     "Isabella", "William", "Mia", "James", "Charlotte", "Benjamin", "Amelia",
@@ -186,6 +192,8 @@ def create_test_pets(db, org_id, count=20):
             weight=uniform(5.0, 100.0),
             altered_status=choice([AlteredStatus.yes, AlteredStatus.no, AlteredStatus.unsure]),
             date_of_birth=datetime.now() - timedelta(days=randint(365, 3650)),
+            color=choice(COLORS),
+            adoption_fee=uniform(50.0, 300.0),
             status=choice([PetStatus.intake, PetStatus.available, PetStatus.in_foster, PetStatus.pending]),
             description_public=f"Meet {name}! A lovely {species.lower()} looking for a forever home.",
             description_internal=f"Intake notes: Good temperament, friendly with people.",
