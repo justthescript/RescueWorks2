@@ -33,7 +33,15 @@ target_metadata = Base.metadata
 
 
 def get_url():
-    return os.getenv("DATABASE_URL", "sqlite:///./rescueworks.db")
+    """Get database URL from environment with Railway compatibility fixes."""
+    url = os.getenv("DATABASE_URL", "sqlite:///./rescueworks.db")
+
+    # Railway/Heroku compatibility: fix postgres:// to postgresql://
+    # SQLAlchemy 1.4+ requires postgresql:// scheme
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql://", 1)
+
+    return url
 
 
 def run_migrations_offline() -> None:
