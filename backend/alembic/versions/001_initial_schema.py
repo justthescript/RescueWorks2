@@ -99,7 +99,7 @@ def upgrade():
         sa.Column('intake_date', sa.Date(), nullable=True),
         sa.Column('microchip_number', sa.String(), nullable=True),
         sa.Column('weight', sa.Float(), nullable=True),
-        sa.Column('altered_status', sa.Enum('altered', 'not_altered', 'unknown', name='alteredstatus'), nullable=True),
+        sa.Column('altered_status', sa.Enum('yes', 'no', 'unsure', name='alteredstatus'), nullable=True),
         sa.Column('date_of_birth', sa.Date(), nullable=True),
         sa.Column('status', sa.Enum('intake', 'needs_foster', 'in_foster', 'available', 'pending', 'adopted', 'medical_hold', name='petstatus'), nullable=True),
         sa.Column('description_public', sa.Text(), nullable=True),
