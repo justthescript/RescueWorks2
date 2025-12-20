@@ -23,7 +23,7 @@ alembic upgrade head
 if [ "$SEED_DATABASE" = "true" ]; then
     echo ""
     echo "Seeding database with test data..."
-    python seed_database.py
+    python populate_test_data.py
 fi
 
 echo ""
